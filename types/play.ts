@@ -21,6 +21,7 @@ export interface Keyframe {
 export interface Play {
   id: string
   name: string
+  description?: string
   keyframes: Keyframe[]
 }
 
