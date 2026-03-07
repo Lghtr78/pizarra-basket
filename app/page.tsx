@@ -6,6 +6,7 @@ import EditPanel from '@/components/EditPanel'
 import DemoPanel from '@/components/DemoPanel'
 import ChallengePanel from '@/components/ChallengePanel'
 import SharePanel from '@/components/SharePanel'
+import PlaySelector from '@/components/PlaySelector'
 import { AppMode } from '@/types/play'
 
 const MODES: { id: AppMode; label: string; emoji: string }[] = [
@@ -17,6 +18,7 @@ const MODES: { id: AppMode; label: string; emoji: string }[] = [
 export default function Home() {
   const { mode, setMode } = usePlayStore()
   const [showShare, setShowShare] = useState(false)
+  const [showLibrary, setShowLibrary] = useState(false)
 
   return (
     <main className="min-h-screen bg-[#0f1117] text-white flex flex-col">
@@ -28,17 +30,38 @@ export default function Home() {
           </h1>
           <p className="text-white/40 text-xs mt-0.5">La Plata · Básquet formativo</p>
         </div>
-        <button
-          onClick={() => setShowShare(!showShare)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            showShare
-              ? 'bg-orange-500 text-white'
-              : 'bg-white/10 text-white/70 hover:bg-white/20'
-          }`}
-        >
-          Compartir
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setShowLibrary(!showLibrary); setShowShare(false) }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              showLibrary
+                ? 'bg-orange-500 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}
+          >
+            Biblioteca
+          </button>
+          <button
+            onClick={() => { setShowShare(!showShare); setShowLibrary(false) }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              showShare
+                ? 'bg-orange-500 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}
+          >
+            Compartir
+          </button>
+        </div>
       </header>
+
+      {/* Library panel */}
+      {showLibrary && (
+        <div className="px-4 pb-3 max-w-2xl mx-auto w-full">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <PlaySelector onClose={() => setShowLibrary(false)} />
+          </div>
+        </div>
+      )}
 
       {/* Share panel */}
       {showShare && (
@@ -55,7 +78,7 @@ export default function Home() {
           {MODES.map((m) => (
             <button
               key={m.id}
-              onClick={() => { setMode(m.id); setShowShare(false) }}
+              onClick={() => { setMode(m.id); setShowShare(false); setShowLibrary(false) }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 mode === m.id
                   ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
