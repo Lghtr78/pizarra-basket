@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pizarra-basket",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/lucia/pizarra-basket/node_modules/next/dist/bin/next", "dev", "--port", "3001"],
+      "port": 3001
+    }
+  ]
+}
