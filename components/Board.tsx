@@ -1,9 +1,13 @@
 'use client'
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { usePlayStore } from '@/store/playStore'
 import Court, { COURT_WIDTH, COURT_HEIGHT } from './Court'
 import PlayerPiece from './PlayerPiece'
 import MovementArrows from './MovementArrows'
+import AnnotationLayer from './AnnotationLayer'
+import { AnnotationType } from '@/types/play'
+
+const BALL_RADIUS = 10
 
 export default function Board() {
   const svgRef = useRef<SVGSVGElement>(null)
@@ -14,12 +18,18 @@ export default function Board() {
     mode,
     isDemoPlaying,
     demoSpeed,
+    editTool,
     challengeUserPositions,
     movePlayer,
     moveChallengePlayer,
     advanceDemoFrame,
-    setDemoPlaying,
+    addAnnotation,
+    removeAnnotation,
+    moveBall,
   } = usePlayStore()
+
+  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
+  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null)
 
   // Demo auto-avance
   useEffect(() => {
@@ -30,17 +40,95 @@ export default function Board() {
     return () => clearTimeout(timer)
   }, [mode, isDemoPlaying, currentFrameIndex, demoSpeed, advanceDemoFrame])
 
+  const getSVGCoords = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current
+    if (!svg) return null
+    const rect = svg.getBoundingClientRect()
+    const scaleX = COURT_WIDTH / rect.width
+    const scaleY = COURT_HEIGHT / rect.height
+    const svgX = (clientX - rect.left) * scaleX
+    const svgY = (clientY - rect.top) * scaleY
+    return {
+      x: Math.max(1, Math.min(99, (svgX / COURT_WIDTH) * 100)),
+      y: Math.max(1, Math.min(99, (svgY / COURT_HEIGHT) * 100)),
+    }
+  }, [])
+
+  const isDrawingTool = mode === 'edit' && editTool !== 'select' && editTool !== 'ball'
+  const isBallTool = mode === 'edit' && editTool === 'ball'
+
+  const handleSVGMouseDown = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!(isDrawingTool || isBallTool)) return
+      const coords = getSVGCoords(e.clientX, e.clientY)
+      if (!coords) return
+      if (isBallTool) {
+        moveBall(coords.x, coords.y)
+        return
+      }
+      setDrawStart(coords)
+      setDrawCurrent(coords)
+    },
+    [isDrawingTool, isBallTool, getSVGCoords, moveBall]
+  )
+
+  const handleSVGMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!isDrawingTool || !drawStart) return
+      const coords = getSVGCoords(e.clientX, e.clientY)
+      if (coords) setDrawCurrent(coords)
+    },
+    [isDrawingTool, drawStart, getSVGCoords]
+  )
+
+  const handleSVGMouseUp = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!isDrawingTool || !drawStart) return
+      const coords = getSVGCoords(e.clientX, e.clientY)
+      if (coords) {
+        const dx = coords.x - drawStart.x
+        const dy = coords.y - drawStart.y
+        if (Math.sqrt(dx * dx + dy * dy) > 2) {
+          addAnnotation({
+            type: editTool as AnnotationType,
+            fromX: drawStart.x,
+            fromY: drawStart.y,
+            toX: coords.x,
+            toY: coords.y,
+          })
+        }
+      }
+      setDrawStart(null)
+      setDrawCurrent(null)
+    },
+    [isDrawingTool, drawStart, getSVGCoords, addAnnotation, editTool]
+  )
+
   const currentFrame = play.keyframes[currentFrameIndex]
   const prevFrame = currentFrameIndex > 0 ? play.keyframes[currentFrameIndex - 1] : null
 
   const positions =
     mode === 'challenge' ? challengeUserPositions : currentFrame.positions
 
-  const draggable = mode === 'edit' || mode === 'challenge'
+  const draggable = (mode === 'edit' || mode === 'challenge') && editTool === 'select'
   const handleMove = mode === 'edit' ? movePlayer : moveChallengePlayer
 
-  // En demo, mostrar flechas del frame anterior al actual
-  const showArrows = mode === 'demo' && prevFrame !== null
+  const showMovementArrows = mode === 'demo' && prevFrame !== null
+  const annotations = currentFrame.annotations ?? []
+  const ballPos = currentFrame.ballPosition
+
+  const preview =
+    isDrawingTool && drawStart && drawCurrent
+      ? {
+          type: editTool as AnnotationType,
+          fromX: drawStart.x,
+          fromY: drawStart.y,
+          toX: drawCurrent.x,
+          toY: drawCurrent.y,
+        }
+      : null
+
+  const svgCursor = isDrawingTool ? 'crosshair' : isBallTool ? 'cell' : 'default'
 
   return (
     <div className="w-full flex justify-center">
@@ -49,12 +137,27 @@ export default function Board() {
           ref={svgRef}
           viewBox={`0 0 ${COURT_WIDTH} ${COURT_HEIGHT}`}
           className="w-full h-auto rounded-xl shadow-2xl border border-white/10"
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', cursor: svgCursor }}
+          onMouseDown={handleSVGMouseDown}
+          onMouseMove={handleSVGMouseMove}
+          onMouseUp={handleSVGMouseUp}
+          onMouseLeave={() => { setDrawStart(null); setDrawCurrent(null) }}
         >
           <Court />
-          {showArrows && (
+
+          {/* Anotaciones del frame actual */}
+          <AnnotationLayer
+            annotations={annotations}
+            preview={preview}
+            onRemove={mode === 'edit' && editTool === 'select' ? removeAnnotation : undefined}
+          />
+
+          {/* Flechas de movimiento automático en demo */}
+          {showMovementArrows && (
             <MovementArrows from={prevFrame!.positions} to={currentFrame.positions} />
           )}
+
+          {/* Jugadores */}
           {players.map((player) => {
             const pos = positions.find((p) => p.playerId === player.id)
             if (!pos) return null
@@ -70,21 +173,39 @@ export default function Board() {
               />
             )
           })}
-        </svg>
 
-        {/* Indicador de frame en modo demo */}
-        {mode === 'demo' && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-            {play.keyframes.map((_, i) => (
-              <div
-                key={i}
-                className={`w-2.5 h-2.5 rounded-full border border-white/50 transition-all ${
-                  i === currentFrameIndex ? 'bg-white scale-125' : 'bg-white/30'
-                }`}
-              />
-            ))}
-          </div>
-        )}
+          {/* Pelota */}
+          {ballPos && (
+            <g
+              transform={`translate(${(ballPos.x / 100) * COURT_WIDTH}, ${(ballPos.y / 100) * COURT_HEIGHT})`}
+              style={{ cursor: isBallTool ? 'cell' : 'default' }}
+              onMouseDown={(e) => {
+                if (isBallTool) { e.stopPropagation(); moveBall(ballPos.x, ballPos.y) }
+              }}
+            >
+              <circle r={BALL_RADIUS} fill="none" stroke="white" strokeWidth={2.5} />
+              <line x1={-BALL_RADIUS} y1={0} x2={BALL_RADIUS} y2={0} stroke="white" strokeWidth={1} opacity={0.5} />
+              <line x1={0} y1={-BALL_RADIUS} x2={0} y2={BALL_RADIUS} stroke="white" strokeWidth={1} opacity={0.5} />
+            </g>
+          )}
+
+          {/* Indicador de frame en demo */}
+          {mode === 'demo' && (
+            <g transform={`translate(${COURT_WIDTH / 2}, ${COURT_HEIGHT - 15})`}>
+              {play.keyframes.map((_, i) => (
+                <circle
+                  key={i}
+                  cx={(i - (play.keyframes.length - 1) / 2) * 16}
+                  cy={0}
+                  r={5}
+                  fill={i === currentFrameIndex ? 'white' : 'rgba(255,255,255,0.3)'}
+                  stroke="rgba(255,255,255,0.5)"
+                  strokeWidth={1}
+                />
+              ))}
+            </g>
+          )}
+        </svg>
       </div>
     </div>
   )

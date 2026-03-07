@@ -1,6 +1,6 @@
 'use client'
 import { create } from 'zustand'
-import { Play, Keyframe, PlayerPosition, AppMode, Player } from '@/types/play'
+import { Play, Keyframe, PlayerPosition, AppMode, Player, Annotation, EditorTool } from '@/types/play'
 
 const DEFAULT_PLAYERS: Player[] = [
   { id: 'o1', label: '1', role: 'offense', color: '#f97316' },
@@ -37,7 +37,7 @@ function makeInitialPlay(): Play {
     id: makeId(),
     name: 'Nueva jugada',
     keyframes: [
-      { id: makeId(), positions: DEFAULT_POSITIONS },
+      { id: makeId(), positions: DEFAULT_POSITIONS, annotations: [] },
     ],
   }
 }
@@ -47,9 +47,10 @@ interface PlayStore {
   play: Play
   currentFrameIndex: number
   mode: AppMode
-  demoSpeed: number // ms por frame
+  demoSpeed: number
   isDemoPlaying: boolean
   challengeUserPositions: PlayerPosition[]
+  editTool: EditorTool
 
   // edit actions
   setPlayName: (name: string) => void
@@ -57,6 +58,11 @@ interface PlayStore {
   addKeyframe: () => void
   removeKeyframe: (frameIndex: number) => void
   goToFrame: (index: number) => void
+  setEditTool: (tool: EditorTool) => void
+  addAnnotation: (ann: Omit<Annotation, 'id'>) => void
+  removeAnnotation: (annId: string) => void
+  moveBall: (x: number, y: number) => void
+  removeBall: () => void
 
   // demo actions
   setMode: (mode: AppMode) => void
@@ -67,7 +73,7 @@ interface PlayStore {
   // challenge actions
   moveChallengePlayer: (playerId: string, x: number, y: number) => void
   resetChallenge: () => void
-  scoreChallenge: () => number // 0-100
+  scoreChallenge: () => number
 
   // serialization
   exportCode: () => string
@@ -83,6 +89,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   demoSpeed: 1200,
   isDemoPlaying: false,
   challengeUserPositions: [],
+  editTool: 'select',
 
   setPlayName: (name) =>
     set((s) => ({ play: { ...s.play, name } })),
@@ -104,6 +111,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const newFrame: Keyframe = {
         id: makeId(),
         positions: last.positions.map((p) => ({ ...p })),
+        annotations: [],
       }
       const keyframes = [...s.play.keyframes, newFrame]
       return {
@@ -121,6 +129,42 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     }),
 
   goToFrame: (index) => set({ currentFrameIndex: index }),
+
+  setEditTool: (editTool) => set({ editTool }),
+
+  addAnnotation: (ann) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = [...(frame.annotations ?? []), { ...ann, id: makeId() }]
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  removeAnnotation: (annId) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = (frame.annotations ?? []).filter((a) => a.id !== annId)
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  moveBall: (x, y) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      frames[s.currentFrameIndex] = { ...frame, ballPosition: { x, y } }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  removeBall: () =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      frames[s.currentFrameIndex] = { ...frame, ballPosition: undefined }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
 
   setMode: (mode) =>
     set((s) => {
@@ -171,7 +215,6 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const dy = t.y - u.y
       totalError += Math.sqrt(dx * dx + dy * dy)
     }
-    // máximo error teórico: 10 jugadores * ~141 (diagonal) = 1410
     const score = Math.max(0, Math.round(100 - (totalError / 1410) * 100))
     return score
   },
