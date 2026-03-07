@@ -72,6 +72,7 @@ interface PlayStore {
   // serialization
   exportCode: () => string
   importCode: (code: string) => boolean
+  loadPlay: (play: Play) => void
 }
 
 export const usePlayStore = create<PlayStore>((set, get) => ({
@@ -189,4 +190,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       return false
     }
   },
+
+  loadPlay: (play) =>
+    set({ play, currentFrameIndex: 0, isDemoPlaying: false }),
 }))

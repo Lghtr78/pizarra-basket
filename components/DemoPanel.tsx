@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import { usePlayStore } from '@/store/playStore'
+import { DEMO_PLAYS } from '@/lib/demoPlays'
 
 export default function DemoPanel() {
   const {
@@ -11,6 +12,7 @@ export default function DemoPanel() {
     setDemoPlaying,
     setDemoSpeed,
     goToFrame,
+    loadPlay,
   } = usePlayStore()
 
   const total = play.keyframes.length
@@ -27,6 +29,31 @@ export default function DemoPanel() {
 
   return (
     <div className="flex flex-col gap-4">
+
+      {/* Biblioteca de jugadas */}
+      <div>
+        <p className="text-xs text-white/50 uppercase tracking-wider mb-2">Biblioteca</p>
+        <div className="grid grid-cols-2 gap-2">
+          {DEMO_PLAYS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => loadPlay(p)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium text-left transition-all ${
+                play.id === p.id
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+              }`}
+            >
+              <span className="block font-semibold">{p.name}</span>
+              <span className="text-xs opacity-60">{p.keyframes.length} frames</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-white/10" />
+
+      {/* Info de la jugada actual */}
       <div>
         <p className="text-white font-semibold text-lg">{play.name}</p>
         <p className="text-white/50 text-sm mt-0.5">
@@ -52,8 +79,11 @@ export default function DemoPanel() {
         </button>
         <button
           onClick={handlePlayPause}
+          disabled={total <= 1}
           className={`flex-1 py-3 rounded-xl font-bold text-white transition-all shadow-lg ${
-            isDemoPlaying
+            total <= 1
+              ? 'bg-white/10 opacity-40 cursor-not-allowed'
+              : isDemoPlaying
               ? 'bg-orange-500 shadow-orange-500/30'
               : 'bg-green-500 shadow-green-500/30 hover:bg-green-400'
           }`}
