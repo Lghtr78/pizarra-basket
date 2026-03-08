@@ -9,10 +9,12 @@ export default function DemoPanel() {
     currentFrameIndex,
     isDemoPlaying,
     demoSpeed,
+    library,
     setDemoPlaying,
     setDemoSpeed,
     goToFrame,
     loadPlay,
+    removeFromLibrary,
   } = usePlayStore()
 
   const total = play.keyframes.length
@@ -30,9 +32,38 @@ export default function DemoPanel() {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* Biblioteca de jugadas */}
+      {/* Mis jugadas (biblioteca del usuario) */}
+      {library.length > 0 && (
+        <div>
+          <p className="text-xs text-white/50 uppercase tracking-wider mb-2">Mis jugadas</p>
+          <div className="grid grid-cols-2 gap-2">
+            {library.map((p) => (
+              <div key={p.id} className="relative group">
+                <button
+                  onClick={() => loadPlay(p)}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium text-left transition-all pr-7 ${
+                    play.id === p.id
+                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                  }`}
+                >
+                  <span className="block font-semibold truncate">{p.name}</span>
+                  <span className="text-xs opacity-60">{p.keyframes.length} frames</span>
+                </button>
+                <button
+                  onClick={() => removeFromLibrary(p.id)}
+                  className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/30 text-white/50 hover:bg-red-500/70 hover:text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                  title="Eliminar"
+                >×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ejemplos */}
       <div>
-        <p className="text-xs text-white/50 uppercase tracking-wider mb-2">Biblioteca</p>
+        <p className="text-xs text-white/50 uppercase tracking-wider mb-2">Ejemplos</p>
         <div className="grid grid-cols-2 gap-2">
           {DEMO_PLAYS.map((p) => (
             <button

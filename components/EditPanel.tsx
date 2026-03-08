@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useState } from 'react'
 import { usePlayStore } from '@/store/playStore'
 import { EditorTool } from '@/types/play'
 
@@ -33,7 +33,16 @@ export default function EditPanel() {
     setEditTool,
     removeAnnotation,
     removeBall,
+    saveToLibrary,
   } = usePlayStore()
+
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = () => {
+    saveToLibrary()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
 
   const currentFrame = play.keyframes[currentFrameIndex]
   const annotations = currentFrame.annotations ?? []
@@ -152,6 +161,20 @@ export default function EditPanel() {
           </button>
         </div>
       </div>
+
+      <div className="border-t border-white/10" />
+
+      {/* Guardar en biblioteca */}
+      <button
+        onClick={handleSave}
+        className={`w-full py-3 rounded-xl font-bold text-sm transition-all shadow-lg ${
+          saved
+            ? 'bg-green-500 text-white shadow-green-500/30'
+            : 'bg-orange-500 hover:bg-orange-400 text-white shadow-orange-500/30'
+        }`}
+      >
+        {saved ? '✓ Guardado en biblioteca' : '💾 Guardar en biblioteca'}
+      </button>
     </div>
   )
 }

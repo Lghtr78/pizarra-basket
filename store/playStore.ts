@@ -2,6 +2,22 @@
 import { create } from 'zustand'
 import { Play, Keyframe, PlayerPosition, AppMode, Player, Annotation, EditorTool } from '@/types/play'
 
+const LIBRARY_KEY = 'pizarra-basket-library'
+
+function loadLibraryFromStorage(): Play[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem(LIBRARY_KEY) ?? '[]') as Play[]
+  } catch {
+    return []
+  }
+}
+
+function persistLibrary(library: Play[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(library))
+}
+
 const DEFAULT_PLAYERS: Player[] = [
   { id: 'o1', label: '1', role: 'offense', color: '#f97316' },
   { id: 'o2', label: '2', role: 'offense', color: '#f97316' },
@@ -51,6 +67,7 @@ interface PlayStore {
   isDemoPlaying: boolean
   challengeUserPositions: PlayerPosition[]
   editTool: EditorTool
+  library: Play[]
 
   // edit actions
   setPlayName: (name: string) => void
@@ -64,6 +81,10 @@ interface PlayStore {
   moveAnnotationControl: (annId: string, cx: number, cy: number) => void
   moveBall: (x: number, y: number) => void
   removeBall: () => void
+
+  // library actions
+  saveToLibrary: () => void
+  removeFromLibrary: (playId: string) => void
 
   // demo actions
   setMode: (mode: AppMode) => void
@@ -91,6 +112,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   isDemoPlaying: false,
   challengeUserPositions: [],
   editTool: 'select',
+  library: loadLibraryFromStorage(),
 
   setPlayName: (name) =>
     set((s) => ({ play: { ...s.play, name } })),
@@ -176,6 +198,24 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const frame = frames[s.currentFrameIndex]
       frames[s.currentFrameIndex] = { ...frame, ballPosition: undefined }
       return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  saveToLibrary: () =>
+    set((s) => {
+      const snapshot = JSON.parse(JSON.stringify(s.play)) as Play
+      const idx = s.library.findIndex((p) => p.id === snapshot.id)
+      const library = idx >= 0
+        ? s.library.map((p, i) => (i === idx ? snapshot : p))
+        : [...s.library, snapshot]
+      persistLibrary(library)
+      return { library }
+    }),
+
+  removeFromLibrary: (playId) =>
+    set((s) => {
+      const library = s.library.filter((p) => p.id !== playId)
+      persistLibrary(library)
+      return { library }
     }),
 
   setMode: (mode) =>
