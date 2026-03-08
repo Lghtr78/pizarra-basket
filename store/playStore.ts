@@ -1,6 +1,22 @@
 'use client'
 import { create } from 'zustand'
-import { Play, Keyframe, PlayerPosition, AppMode, Player } from '@/types/play'
+import { Play, Keyframe, PlayerPosition, AppMode, Player, Annotation, EditorTool } from '@/types/play'
+
+const LIBRARY_KEY = 'pizarra-basket-library'
+
+function loadLibraryFromStorage(): Play[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem(LIBRARY_KEY) ?? '[]') as Play[]
+  } catch {
+    return []
+  }
+}
+
+function persistLibrary(library: Play[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(library))
+}
 
 const DEFAULT_PLAYERS: Player[] = [
   { id: 'o1', label: '1', role: 'offense', color: '#f97316' },
@@ -37,7 +53,7 @@ function makeInitialPlay(): Play {
     id: makeId(),
     name: 'Nueva jugada',
     keyframes: [
-      { id: makeId(), positions: DEFAULT_POSITIONS },
+      { id: makeId(), positions: DEFAULT_POSITIONS, annotations: [] },
     ],
   }
 }
@@ -47,9 +63,11 @@ interface PlayStore {
   play: Play
   currentFrameIndex: number
   mode: AppMode
-  demoSpeed: number // ms por frame
+  demoSpeed: number
   isDemoPlaying: boolean
   challengeUserPositions: PlayerPosition[]
+  editTool: EditorTool
+  library: Play[]
 
   // edit actions
   setPlayName: (name: string) => void
@@ -57,6 +75,20 @@ interface PlayStore {
   addKeyframe: () => void
   removeKeyframe: (frameIndex: number) => void
   goToFrame: (index: number) => void
+  setEditTool: (tool: EditorTool) => void
+  addAnnotation: (ann: Omit<Annotation, 'id'>) => void
+  removeAnnotation: (annId: string) => void
+  moveAnnotationControl: (annId: string, cx: number, cy: number) => void
+  moveBall: (x: number, y: number) => void
+  removeBall: () => void
+
+  // defender management
+  addDefender: () => void
+  removeDefender: () => void
+
+  // library actions
+  saveToLibrary: () => void
+  removeFromLibrary: (playId: string) => void
 
   // demo actions
   setMode: (mode: AppMode) => void
@@ -67,7 +99,7 @@ interface PlayStore {
   // challenge actions
   moveChallengePlayer: (playerId: string, x: number, y: number) => void
   resetChallenge: () => void
-  scoreChallenge: () => number // 0-100
+  scoreChallenge: () => number
 
   // library
   loadPlay: (play: Play) => void
@@ -75,6 +107,7 @@ interface PlayStore {
   // serialization
   exportCode: () => string
   importCode: (code: string) => boolean
+  loadPlay: (play: Play) => void
 }
 
 export const usePlayStore = create<PlayStore>((set, get) => ({
@@ -85,6 +118,8 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   demoSpeed: 1200,
   isDemoPlaying: false,
   challengeUserPositions: [],
+  editTool: 'select',
+  library: loadLibraryFromStorage(),
 
   setPlayName: (name) =>
     set((s) => ({ play: { ...s.play, name } })),
@@ -106,6 +141,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const newFrame: Keyframe = {
         id: makeId(),
         positions: last.positions.map((p) => ({ ...p })),
+        annotations: [],
       }
       const keyframes = [...s.play.keyframes, newFrame]
       return {
@@ -123,6 +159,108 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     }),
 
   goToFrame: (index) => set({ currentFrameIndex: index }),
+
+  addDefender: () =>
+    set((s) => {
+      const count = s.players.filter((p) => p.role === 'defense').length
+      if (count >= 5) return s
+      const n = count + 1
+      const id = `d${n}`
+      const newPlayer: Player = { id, label: 'D', role: 'defense', color: '#3b82f6' }
+      const newPos: PlayerPosition = { playerId: id, x: 40 + n * 5, y: 45 }
+      return {
+        players: [...s.players, newPlayer],
+        play: {
+          ...s.play,
+          keyframes: s.play.keyframes.map((kf) => ({
+            ...kf,
+            positions: [...kf.positions, { ...newPos }],
+          })),
+        },
+      }
+    }),
+
+  removeDefender: () =>
+    set((s) => {
+      const defenders = s.players.filter((p) => p.role === 'defense')
+      if (defenders.length === 0) return s
+      const last = defenders[defenders.length - 1]
+      return {
+        players: s.players.filter((p) => p.id !== last.id),
+        play: {
+          ...s.play,
+          keyframes: s.play.keyframes.map((kf) => ({
+            ...kf,
+            positions: kf.positions.filter((p) => p.playerId !== last.id),
+          })),
+        },
+      }
+    }),
+
+  setEditTool: (editTool) => set({ editTool }),
+
+  addAnnotation: (ann) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = [...(frame.annotations ?? []), { ...ann, id: makeId() }]
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  removeAnnotation: (annId) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = (frame.annotations ?? []).filter((a) => a.id !== annId)
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  moveAnnotationControl: (annId, cx, cy) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = (frame.annotations ?? []).map((a) =>
+        a.id === annId ? { ...a, cx, cy } : a
+      )
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  moveBall: (x, y) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      frames[s.currentFrameIndex] = { ...frame, ballPosition: { x, y } }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  removeBall: () =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      frames[s.currentFrameIndex] = { ...frame, ballPosition: undefined }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  saveToLibrary: () =>
+    set((s) => {
+      const snapshot = JSON.parse(JSON.stringify(s.play)) as Play
+      const idx = s.library.findIndex((p) => p.id === snapshot.id)
+      const library = idx >= 0
+        ? s.library.map((p, i) => (i === idx ? snapshot : p))
+        : [...s.library, snapshot]
+      persistLibrary(library)
+      return { library }
+    }),
+
+  removeFromLibrary: (playId) =>
+    set((s) => {
+      const library = s.library.filter((p) => p.id !== playId)
+      persistLibrary(library)
+      return { library }
+    }),
 
   setMode: (mode) =>
     set((s) => {
@@ -173,7 +311,6 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const dy = t.y - u.y
       totalError += Math.sqrt(dx * dx + dy * dy)
     }
-    // máximo error teórico: 10 jugadores * ~141 (diagonal) = 1410
     const score = Math.max(0, Math.round(100 - (totalError / 1410) * 100))
     return score
   },
@@ -195,4 +332,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       return false
     }
   },
+
+  loadPlay: (play) =>
+    set({ play, currentFrameIndex: 0, isDemoPlaying: false }),
 }))

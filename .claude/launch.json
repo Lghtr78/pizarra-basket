@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "pizarra-basket",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "dev"],
-      "port": 3000
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/lucia/pizarra-basket/node_modules/next/dist/bin/next", "dev", "--port", "3001"],
+      "port": 3001
     }
   ]
 }
