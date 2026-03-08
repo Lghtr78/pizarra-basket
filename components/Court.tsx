@@ -84,13 +84,13 @@ export default function Court() {
         d={`M ${ARO_X - FT_R} ${FT_Y} A ${FT_R} ${FT_R} 0 0 0 ${ARO_X + FT_R} ${FT_Y}`}
         fill="none" stroke={LINE} strokeWidth={LW} />
 
-      {/* ── Arco de 3 puntos: abre hacia el centro (abajo, sweep=1) ── */}
+      {/* ── Arco de 3 puntos: abre hacia el centro (abajo, sweep=0) ── */}
       <line x1={THREE_X_L} y1={MRG} x2={THREE_X_L} y2={THREE_Y}
         stroke={LINE} strokeWidth={LW} />
       <line x1={THREE_X_R} y1={MRG} x2={THREE_X_R} y2={THREE_Y}
         stroke={LINE} strokeWidth={LW} />
       <path
-        d={`M ${THREE_X_L} ${THREE_Y} A ${THREE_R} ${THREE_R} 0 0 1 ${THREE_X_R} ${THREE_Y}`}
+        d={`M ${THREE_X_L} ${THREE_Y} A ${THREE_R} ${THREE_R} 0 0 0 ${THREE_X_R} ${THREE_Y}`}
         fill="none" stroke={LINE} strokeWidth={LW} />
     </g>
   )
