@@ -90,27 +90,15 @@ function buildScreenParts(ann: Annotation): { line: string; bar: string } {
   return { line, bar: `M ${p2.x+px} ${p2.y+py} L ${p2.x-px} ${p2.y-py}` }
 }
 
-// Dos líneas paralelas (rectas o bezier) para el tipo tiro
-function buildTiroPaths(ann: Annotation): [string, string] {
+// Línea única (recta o bezier) para el tipo tiro
+function buildTiroPath(ann: Annotation): string {
   const p0 = toSVG(ann.fromX, ann.fromY)
   const p2 = toSVG(ann.toX, ann.toY)
   const cp = getControlPt(ann)
   const isCurved = ann.cx !== undefined && ann.cy !== undefined
-  const dx = p2.x - p0.x, dy = p2.y - p0.y
-  const len = Math.sqrt(dx*dx + dy*dy)
-  if (len < 1) return [`M ${p0.x} ${p0.y}`, `M ${p0.x} ${p0.y}`]
-  // Perpendicular basado en la dirección global p0→p2
-  const px = (-dy/len)*4, py = (dx/len)*4
-  if (isCurved) {
-    return [
-      `M ${p0.x+px} ${p0.y+py} Q ${cp.x+px} ${cp.y+py} ${p2.x+px} ${p2.y+py}`,
-      `M ${p0.x-px} ${p0.y-py} Q ${cp.x-px} ${cp.y-py} ${p2.x-px} ${p2.y-py}`,
-    ]
-  }
-  return [
-    `M ${p0.x+px} ${p0.y+py} L ${p2.x+px} ${p2.y+py}`,
-    `M ${p0.x-px} ${p0.y-py} L ${p2.x-px} ${p2.y-py}`,
-  ]
+  return isCurved
+    ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
+    : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
 }
 
 const COLORS: Record<AnnotationType, string> = {
@@ -164,12 +152,9 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
   }
 
   if (type === 'tiro') {
-    const [l1, l2] = buildTiroPaths(ann)
     return (
-      <g>
-        <path d={l1} fill="none" stroke={color} strokeWidth={2} strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
-        <path d={l2} fill="none" stroke={color} strokeWidth={2} strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
-      </g>
+      <path d={buildTiroPath(ann)} fill="none" stroke={color} strokeWidth={2.5}
+        strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
     )
   }
 
