@@ -167,8 +167,8 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
     const [l1, l2] = buildTiroPaths(ann)
     return (
       <g>
-        <path d={l1} fill="none" stroke={color} strokeWidth={2} markerEnd={`url(#${markerId})`} />
-        <path d={l2} fill="none" stroke={color} strokeWidth={2} markerEnd={`url(#${markerId})`} />
+        <path d={l1} fill="none" stroke={color} strokeWidth={2} strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
+        <path d={l2} fill="none" stroke={color} strokeWidth={2} strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
       </g>
     )
   }
