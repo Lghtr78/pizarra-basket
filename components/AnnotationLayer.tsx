@@ -4,7 +4,7 @@ import { Annotation, AnnotationType } from '@/types/play'
 import { COURT_WIDTH, COURT_HEIGHT } from './Court'
 
 // Tipos que soportan curvado con handle
-const CURVABLE: AnnotationType[] = ['desplazamiento', 'dribling', 'cortina']
+const CURVABLE: AnnotationType[] = ['desplazamiento', 'pase', 'dribling', 'cortina', 'tiro']
 
 interface Props {
   annotations: Annotation[]
@@ -90,15 +90,26 @@ function buildScreenParts(ann: Annotation): { line: string; bar: string } {
   return { line, bar: `M ${p2.x+px} ${p2.y+py} L ${p2.x-px} ${p2.y-py}` }
 }
 
-function doubleLinePaths(fx: number, fy: number, tx: number, ty: number): [string, string] {
-  const p1 = toSVG(fx, fy), p2 = toSVG(tx, ty)
-  const dx = p2.x-p1.x, dy = p2.y-p1.y
-  const len = Math.sqrt(dx*dx+dy*dy)
-  if (len < 1) return [`M ${p1.x} ${p1.y}`, `M ${p1.x} ${p1.y}`]
+// Dos líneas paralelas (rectas o bezier) para el tipo tiro
+function buildTiroPaths(ann: Annotation): [string, string] {
+  const p0 = toSVG(ann.fromX, ann.fromY)
+  const p2 = toSVG(ann.toX, ann.toY)
+  const cp = getControlPt(ann)
+  const isCurved = ann.cx !== undefined && ann.cy !== undefined
+  const dx = p2.x - p0.x, dy = p2.y - p0.y
+  const len = Math.sqrt(dx*dx + dy*dy)
+  if (len < 1) return [`M ${p0.x} ${p0.y}`, `M ${p0.x} ${p0.y}`]
+  // Perpendicular basado en la dirección global p0→p2
   const px = (-dy/len)*4, py = (dx/len)*4
+  if (isCurved) {
+    return [
+      `M ${p0.x+px} ${p0.y+py} Q ${cp.x+px} ${cp.y+py} ${p2.x+px} ${p2.y+py}`,
+      `M ${p0.x-px} ${p0.y-py} Q ${cp.x-px} ${cp.y-py} ${p2.x-px} ${p2.y-py}`,
+    ]
+  }
   return [
-    `M ${p1.x+px} ${p1.y+py} L ${p2.x+px} ${p2.y+py}`,
-    `M ${p1.x-px} ${p1.y-py} L ${p2.x-px} ${p2.y-py}`,
+    `M ${p0.x+px} ${p0.y+py} L ${p2.x+px} ${p2.y+py}`,
+    `M ${p0.x-px} ${p0.y-py} L ${p2.x-px} ${p2.y-py}`,
   ]
 }
 
@@ -126,10 +137,12 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
   }
 
   if (type === 'pase') {
+    const d = isCurved
+      ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
+      : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
     return (
-      <line x1={p0.x} y1={p0.y} x2={p2.x} y2={p2.y}
-        stroke={color} strokeWidth={2.5} strokeDasharray="8 5"
-        markerEnd={`url(#${markerId})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth={2.5}
+        strokeDasharray="8 5" markerEnd={`url(#${markerId})`} />
     )
   }
 
@@ -151,7 +164,7 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
   }
 
   if (type === 'tiro') {
-    const [l1, l2] = doubleLinePaths(fromX, fromY, toX, toY)
+    const [l1, l2] = buildTiroPaths(ann)
     return (
       <g>
         <path d={l1} fill="none" stroke={color} strokeWidth={2} markerEnd={`url(#${markerId})`} />
