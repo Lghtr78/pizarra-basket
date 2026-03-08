@@ -82,6 +82,10 @@ interface PlayStore {
   moveBall: (x: number, y: number) => void
   removeBall: () => void
 
+  // defender management
+  addDefender: () => void
+  removeDefender: () => void
+
   // library actions
   saveToLibrary: () => void
   removeFromLibrary: (playId: string) => void
@@ -152,6 +156,43 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     }),
 
   goToFrame: (index) => set({ currentFrameIndex: index }),
+
+  addDefender: () =>
+    set((s) => {
+      const count = s.players.filter((p) => p.role === 'defense').length
+      if (count >= 5) return s
+      const n = count + 1
+      const id = `d${n}`
+      const newPlayer: Player = { id, label: 'D', role: 'defense', color: '#3b82f6' }
+      const newPos: PlayerPosition = { playerId: id, x: 40 + n * 5, y: 45 }
+      return {
+        players: [...s.players, newPlayer],
+        play: {
+          ...s.play,
+          keyframes: s.play.keyframes.map((kf) => ({
+            ...kf,
+            positions: [...kf.positions, { ...newPos }],
+          })),
+        },
+      }
+    }),
+
+  removeDefender: () =>
+    set((s) => {
+      const defenders = s.players.filter((p) => p.role === 'defense')
+      if (defenders.length === 0) return s
+      const last = defenders[defenders.length - 1]
+      return {
+        players: s.players.filter((p) => p.id !== last.id),
+        play: {
+          ...s.play,
+          keyframes: s.play.keyframes.map((kf) => ({
+            ...kf,
+            positions: kf.positions.filter((p) => p.playerId !== last.id),
+          })),
+        },
+      }
+    }),
 
   setEditTool: (editTool) => set({ editTool }),
 

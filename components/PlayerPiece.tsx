@@ -13,7 +13,7 @@ interface Props {
   dimmed?: boolean
 }
 
-const RADIUS = 18
+const RADIUS = 27
 
 export default function PlayerPiece({ player, x, y, draggable, onMove, svgRef, dimmed }: Props) {
   const isDragging = useRef(false)
@@ -93,7 +93,7 @@ export default function PlayerPiece({ player, x, y, draggable, onMove, svgRef, d
       <text
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={13}
+        fontSize={19}
         fontWeight="bold"
         fill="#fff"
         style={{ pointerEvents: 'none', userSelect: 'none' }}

@@ -24,6 +24,7 @@ const ANN_LABELS: Record<string, string> = {
 export default function EditPanel() {
   const {
     play,
+    players,
     currentFrameIndex,
     editTool,
     goToFrame,
@@ -34,7 +35,11 @@ export default function EditPanel() {
     removeAnnotation,
     removeBall,
     saveToLibrary,
+    addDefender,
+    removeDefender,
   } = usePlayStore()
+
+  const defenderCount = players.filter((p) => p.role === 'defense').length
 
   const [saved, setSaved] = useState(false)
 
@@ -109,6 +114,26 @@ export default function EditPanel() {
           </div>
         </div>
       )}
+
+      {/* Defensores */}
+      <div>
+        <label className="text-xs text-white/60 uppercase tracking-wider">Defensores</label>
+        <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={removeDefender}
+            disabled={defenderCount === 0}
+            className="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xl font-bold disabled:opacity-30 transition-all flex items-center justify-center"
+          >−</button>
+          <span className="flex-1 text-center text-white font-semibold">
+            {defenderCount} <span className="text-white/50 text-sm font-normal">de 5</span>
+          </span>
+          <button
+            onClick={addDefender}
+            disabled={defenderCount >= 5}
+            className="w-9 h-9 rounded-lg bg-blue-500/80 hover:bg-blue-500 text-white text-xl font-bold disabled:opacity-30 transition-all flex items-center justify-center"
+          >+</button>
+        </div>
+      </div>
 
       <div className="border-t border-white/10" />
 
