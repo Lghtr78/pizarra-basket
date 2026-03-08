@@ -61,6 +61,7 @@ interface PlayStore {
   setEditTool: (tool: EditorTool) => void
   addAnnotation: (ann: Omit<Annotation, 'id'>) => void
   removeAnnotation: (annId: string) => void
+  moveAnnotationControl: (annId: string, cx: number, cy: number) => void
   moveBall: (x: number, y: number) => void
   removeBall: () => void
 
@@ -146,6 +147,17 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const frames = [...s.play.keyframes]
       const frame = frames[s.currentFrameIndex]
       const annotations = (frame.annotations ?? []).filter((a) => a.id !== annId)
+      frames[s.currentFrameIndex] = { ...frame, annotations }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  moveAnnotationControl: (annId, cx, cy) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      const frame = frames[s.currentFrameIndex]
+      const annotations = (frame.annotations ?? []).map((a) =>
+        a.id === annId ? { ...a, cx, cy } : a
+      )
       frames[s.currentFrameIndex] = { ...frame, annotations }
       return { play: { ...s.play, keyframes: frames } }
     }),

@@ -25,11 +25,13 @@ export default function Board() {
     advanceDemoFrame,
     addAnnotation,
     removeAnnotation,
+    moveAnnotationControl,
     moveBall,
   } = usePlayStore()
 
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
-  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null)
+  // useRef para evitar stale closure en los event handlers
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [drawPreview, setDrawPreview] = useState<{ from: {x:number,y:number}; to: {x:number,y:number} } | null>(null)
 
   // Demo auto-avance
   useEffect(() => {
@@ -62,46 +64,44 @@ export default function Board() {
       if (!(isDrawingTool || isBallTool)) return
       const coords = getSVGCoords(e.clientX, e.clientY)
       if (!coords) return
-      if (isBallTool) {
-        moveBall(coords.x, coords.y)
-        return
-      }
-      setDrawStart(coords)
-      setDrawCurrent(coords)
+      if (isBallTool) { moveBall(coords.x, coords.y); return }
+      drawStartRef.current = coords
+      setDrawPreview({ from: coords, to: coords })
     },
     [isDrawingTool, isBallTool, getSVGCoords, moveBall]
   )
 
   const handleSVGMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!isDrawingTool || !drawStart) return
+      if (!isDrawingTool || !drawStartRef.current) return
       const coords = getSVGCoords(e.clientX, e.clientY)
-      if (coords) setDrawCurrent(coords)
+      if (coords) setDrawPreview({ from: drawStartRef.current, to: coords })
     },
-    [isDrawingTool, drawStart, getSVGCoords]
+    [isDrawingTool, getSVGCoords]
   )
 
   const handleSVGMouseUp = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!isDrawingTool || !drawStart) return
+      const start = drawStartRef.current
+      if (!isDrawingTool || !start) return
       const coords = getSVGCoords(e.clientX, e.clientY)
       if (coords) {
-        const dx = coords.x - drawStart.x
-        const dy = coords.y - drawStart.y
+        const dx = coords.x - start.x
+        const dy = coords.y - start.y
         if (Math.sqrt(dx * dx + dy * dy) > 2) {
           addAnnotation({
             type: editTool as AnnotationType,
-            fromX: drawStart.x,
-            fromY: drawStart.y,
+            fromX: start.x,
+            fromY: start.y,
             toX: coords.x,
             toY: coords.y,
           })
         }
       }
-      setDrawStart(null)
-      setDrawCurrent(null)
+      drawStartRef.current = null
+      setDrawPreview(null)
     },
-    [isDrawingTool, drawStart, getSVGCoords, addAnnotation, editTool]
+    [isDrawingTool, getSVGCoords, addAnnotation, editTool]
   )
 
   const currentFrame = play.keyframes[currentFrameIndex]
@@ -118,13 +118,13 @@ export default function Board() {
   const ballPos = currentFrame.ballPosition
 
   const preview =
-    isDrawingTool && drawStart && drawCurrent
+    isDrawingTool && drawPreview
       ? {
           type: editTool as AnnotationType,
-          fromX: drawStart.x,
-          fromY: drawStart.y,
-          toX: drawCurrent.x,
-          toY: drawCurrent.y,
+          fromX: drawPreview.from.x,
+          fromY: drawPreview.from.y,
+          toX: drawPreview.to.x,
+          toY: drawPreview.to.y,
         }
       : null
 
@@ -141,7 +141,7 @@ export default function Board() {
           onMouseDown={handleSVGMouseDown}
           onMouseMove={handleSVGMouseMove}
           onMouseUp={handleSVGMouseUp}
-          onMouseLeave={() => { setDrawStart(null); setDrawCurrent(null) }}
+          onMouseLeave={() => { drawStartRef.current = null; setDrawPreview(null) }}
         >
           <Court />
 
@@ -150,6 +150,8 @@ export default function Board() {
             annotations={annotations}
             preview={preview}
             onRemove={mode === 'edit' && editTool === 'select' ? removeAnnotation : undefined}
+            onMoveControl={mode === 'edit' ? moveAnnotationControl : undefined}
+            svgRef={svgRef}
           />
 
           {/* Flechas de movimiento automático en demo */}

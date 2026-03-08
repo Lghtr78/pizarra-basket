@@ -1,140 +1,147 @@
 'use client'
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Annotation, AnnotationType } from '@/types/play'
 import { COURT_WIDTH, COURT_HEIGHT } from './Court'
+
+// Tipos que soportan curvado con handle
+const CURVABLE: AnnotationType[] = ['desplazamiento', 'dribling', 'cortina']
 
 interface Props {
   annotations: Annotation[]
   preview?: { type: AnnotationType; fromX: number; fromY: number; toX: number; toY: number } | null
   onRemove?: (id: string) => void
+  onMoveControl?: (annId: string, cx: number, cy: number) => void
+  svgRef?: React.RefObject<SVGSVGElement | null>
 }
 
 function toSVG(x: number, y: number) {
   return { x: (x / 100) * COURT_WIDTH, y: (y / 100) * COURT_HEIGHT }
 }
 
-// Genera un path de zigzag entre dos puntos (dribling)
-function zigzagPath(fx: number, fy: number, tx: number, ty: number): string {
-  const p1 = toSVG(fx, fy)
-  const p2 = toSVG(tx, ty)
-  const dx = p2.x - p1.x
-  const dy = p2.y - p1.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  if (len < 4) return `M ${p1.x} ${p1.y}`
-  const ux = dx / len
-  const uy = dy / len
-  const px = -uy
-  const py = ux
-  const segs = Math.max(4, Math.round(len / 18))
+// Punto en una bezier cuadrática
+function bezierPt(t: number, p0: {x:number,y:number}, cp: {x:number,y:number}, p2: {x:number,y:number}) {
+  const m = 1 - t
+  return { x: m*m*p0.x + 2*m*t*cp.x + t*t*p2.x, y: m*m*p0.y + 2*m*t*cp.y + t*t*p2.y }
+}
+
+// Tangente al final de la bezier cuadrática (t=1): 2*(p2-cp)
+function bezierEndTangent(cp: {x:number,y:number}, p2: {x:number,y:number}) {
+  return { x: 2*(p2.x - cp.x), y: 2*(p2.y - cp.y) }
+}
+
+// Devuelve el punto de control SVG para la bezier (desde el handle almacenado o el midpoint)
+function getControlPt(ann: Annotation) {
+  const p0 = toSVG(ann.fromX, ann.fromY)
+  const p2 = toSVG(ann.toX, ann.toY)
+  if (ann.cx !== undefined && ann.cy !== undefined) return toSVG(ann.cx, ann.cy)
+  return { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 }
+}
+
+// Zigzag a lo largo de una baseline (recta o bezier)
+function buildZigzagPath(ann: Annotation): string {
+  const p0 = toSVG(ann.fromX, ann.fromY)
+  const p2 = toSVG(ann.toX, ann.toY)
+  const isCurved = ann.cx !== undefined && ann.cy !== undefined
+  const cp = getControlPt(ann)
+  const N = 8
   const amp = 7
-  let d = `M ${p1.x} ${p1.y}`
-  // Deja los últimos 18px rectos para la punta de la flecha
-  const arrowOffset = Math.min(18, len * 0.3)
-  const endX = p2.x - ux * arrowOffset
-  const endY = p2.y - uy * arrowOffset
-  const ex = endX - p1.x
-  const ey = endY - p1.y
-  for (let i = 0; i < segs; i++) {
-    const t0 = i / segs
-    const t1 = (i + 1) / segs
-    const tm = (t0 + t1) / 2
-    const sign = i % 2 === 0 ? 1 : -1
-    const mx = p1.x + tm * ex + sign * amp * px
-    const my = p1.y + tm * ey + sign * amp * py
-    const ex2 = p1.x + t1 * ex
-    const ey2 = p1.y + t1 * ey
-    d += ` Q ${mx} ${my} ${ex2} ${ey2}`
+
+  // Samplear puntos a lo largo de la baseline
+  const pts: {x:number,y:number}[] = []
+  for (let i = 0; i <= N; i++) {
+    const t = i / N
+    pts.push(isCurved ? bezierPt(t, p0, cp, p2) : { x: p0.x + t*(p2.x-p0.x), y: p0.y + t*(p2.y-p0.y) })
   }
-  d += ` L ${p2.x} ${p2.y}`
+
+  // Construir zigzag entre los puntos sampleados
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 0; i < N; i++) {
+    const a = pts[i], b = pts[i+1]
+    const dx = b.x - a.x, dy = b.y - a.y
+    const len = Math.sqrt(dx*dx + dy*dy)
+    if (len < 0.5) continue
+    const sign = i % 2 === 0 ? 1 : -1
+    const mx = (a.x+b.x)/2 + sign * amp * (-dy/len)
+    const my = (a.y+b.y)/2 + sign * amp * (dx/len)
+    d += ` Q ${mx} ${my} ${b.x} ${b.y}`
+  }
   return d
 }
 
-// Genera las dos líneas paralelas de "tiro" (doble flecha)
-function doubleLinePaths(fx: number, fy: number, tx: number, ty: number): [string, string] {
-  const p1 = toSVG(fx, fy)
-  const p2 = toSVG(tx, ty)
-  const dx = p2.x - p1.x
-  const dy = p2.y - p1.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  if (len < 1) return [`M ${p1.x} ${p1.y}`, `M ${p1.x} ${p1.y}`]
-  const px = (-dy / len) * 4
-  const py = (dx / len) * 4
-  return [
-    `M ${p1.x + px} ${p1.y + py} L ${p2.x + px} ${p2.y + py}`,
-    `M ${p1.x - px} ${p1.y - py} L ${p2.x - px} ${p2.y - py}`,
-  ]
+// Línea (recta o curva) + barra perpendicular para cortina
+function buildScreenParts(ann: Annotation): { line: string; bar: string } {
+  const p0 = toSVG(ann.fromX, ann.fromY)
+  const p2 = toSVG(ann.toX, ann.toY)
+  const isCurved = ann.cx !== undefined && ann.cy !== undefined
+  const cp = getControlPt(ann)
+
+  const line = isCurved
+    ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
+    : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
+
+  // Tangente al final para orientar la barra
+  const tang = isCurved
+    ? bezierEndTangent(cp, p2)
+    : { x: p2.x - p0.x, y: p2.y - p0.y }
+  const tLen = Math.sqrt(tang.x*tang.x + tang.y*tang.y)
+  const px = tLen > 0 ? (-tang.y/tLen) * 10 : 10
+  const py = tLen > 0 ? (tang.x/tLen) * 10 : 0
+
+  return { line, bar: `M ${p2.x+px} ${p2.y+py} L ${p2.x-px} ${p2.y-py}` }
 }
 
-// Genera la línea + barra perpendicular de cortina
-function screenParts(fx: number, fy: number, tx: number, ty: number) {
-  const p1 = toSVG(fx, fy)
-  const p2 = toSVG(tx, ty)
-  const dx = p2.x - p1.x
-  const dy = p2.y - p1.y
-  const len = Math.sqrt(dx * dx + dy * dy)
-  if (len < 1) return { line: `M ${p1.x} ${p1.y}`, bar: '' }
-  const px = (-dy / len) * 10
-  const py = (dx / len) * 10
-  return {
-    line: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`,
-    bar: `M ${p2.x + px} ${p2.y + py} L ${p2.x - px} ${p2.y - py}`,
-  }
+function doubleLinePaths(fx: number, fy: number, tx: number, ty: number): [string, string] {
+  const p1 = toSVG(fx, fy), p2 = toSVG(tx, ty)
+  const dx = p2.x-p1.x, dy = p2.y-p1.y
+  const len = Math.sqrt(dx*dx+dy*dy)
+  if (len < 1) return [`M ${p1.x} ${p1.y}`, `M ${p1.x} ${p1.y}`]
+  const px = (-dy/len)*4, py = (dx/len)*4
+  return [
+    `M ${p1.x+px} ${p1.y+py} L ${p2.x+px} ${p2.y+py}`,
+    `M ${p1.x-px} ${p1.y-py} L ${p2.x-px} ${p2.y-py}`,
+  ]
 }
 
 const COLORS: Record<AnnotationType, string> = {
   desplazamiento: 'rgba(255,255,255,0.9)',
-  pase: 'rgba(250,204,21,0.9)',   // amarillo
-  dribling: 'rgba(249,115,22,0.9)', // naranja
-  cortina: 'rgba(96,165,250,0.9)', // azul claro
-  tiro: 'rgba(248,113,113,0.9)',   // rojo claro
+  pase:           'rgba(250,204,21,0.9)',
+  dribling:       'rgba(249,115,22,0.9)',
+  cortina:        'rgba(96,165,250,0.9)',
+  tiro:           'rgba(248,113,113,0.9)',
 }
 
-function AnnotationShape({
-  type, fromX, fromY, toX, toY, markerId,
-}: {
-  type: AnnotationType
-  fromX: number; fromY: number
-  toX: number; toY: number
-  markerId: string
-}) {
+function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string }) {
+  const { type, fromX, fromY, toX, toY } = ann
   const color = COLORS[type]
-  const p1 = toSVG(fromX, fromY)
+  const p0 = toSVG(fromX, fromY)
   const p2 = toSVG(toX, toY)
+  const cp = getControlPt(ann)
+  const isCurved = ann.cx !== undefined && ann.cy !== undefined
 
   if (type === 'desplazamiento') {
-    return (
-      <line
-        x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-        stroke={color} strokeWidth={2.5}
-        markerEnd={`url(#${markerId})`}
-      />
-    )
+    const d = isCurved
+      ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
+      : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
+    return <path d={d} fill="none" stroke={color} strokeWidth={2.5} markerEnd={`url(#${markerId})`} />
   }
 
   if (type === 'pase') {
     return (
-      <line
-        x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-        stroke={color} strokeWidth={2.5}
-        strokeDasharray="8 5"
-        markerEnd={`url(#${markerId})`}
-      />
+      <line x1={p0.x} y1={p0.y} x2={p2.x} y2={p2.y}
+        stroke={color} strokeWidth={2.5} strokeDasharray="8 5"
+        markerEnd={`url(#${markerId})`} />
     )
   }
 
   if (type === 'dribling') {
     return (
-      <path
-        d={zigzagPath(fromX, fromY, toX, toY)}
-        fill="none"
-        stroke={color} strokeWidth={2.5}
-        markerEnd={`url(#${markerId})`}
-      />
+      <path d={buildZigzagPath(ann)} fill="none"
+        stroke={color} strokeWidth={2.5} markerEnd={`url(#${markerId})`} />
     )
   }
 
   if (type === 'cortina') {
-    const { line, bar } = screenParts(fromX, fromY, toX, toY)
+    const { line, bar } = buildScreenParts(ann)
     return (
       <g>
         <path d={line} fill="none" stroke={color} strokeWidth={2.5} />
@@ -156,58 +163,94 @@ function AnnotationShape({
   return null
 }
 
-export default function AnnotationLayer({ annotations, preview, onRemove }: Props) {
-  // Genera un markerId único por color para evitar conflictos con otros markers
+export default function AnnotationLayer({ annotations, preview, onRemove, onMoveControl, svgRef }: Props) {
   const markers = Object.entries(COLORS).map(([type, color]) => (
-    <marker
-      key={type}
-      id={`ann-arrow-${type}`}
-      markerWidth="7" markerHeight="7"
-      refX="6" refY="3.5"
-      orient="auto"
-      markerUnits="strokeWidth"
-    >
+    <marker key={type} id={`ann-arrow-${type}`}
+      markerWidth="7" markerHeight="7" refX="6" refY="3.5"
+      orient="auto" markerUnits="strokeWidth">
       <path d="M 0 0 L 7 3.5 L 0 7 Z" fill={color} />
     </marker>
   ))
+
+  // Drag del handle de curvatura
+  const handleControlDrag = useCallback((e: React.MouseEvent, annId: string) => {
+    if (!svgRef?.current || !onMoveControl) return
+    e.stopPropagation()
+    e.preventDefault()
+    const svg = svgRef.current
+
+    const onMove = (me: MouseEvent) => {
+      const rect = svg.getBoundingClientRect()
+      const cx = Math.max(0, Math.min(100, ((me.clientX - rect.left) / rect.width) * 100))
+      const cy = Math.max(0, Math.min(100, ((me.clientY - rect.top) / rect.height) * 100))
+      onMoveControl(annId, cx, cy)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [svgRef, onMoveControl])
+
+  const showHandles = !!onMoveControl
 
   return (
     <g>
       <defs>{markers}</defs>
 
-      {annotations.map((ann) => (
-        <g key={ann.id}>
-          <AnnotationShape
-            type={ann.type}
-            fromX={ann.fromX} fromY={ann.fromY}
-            toX={ann.toX} toY={ann.toY}
-            markerId={`ann-arrow-${ann.type}`}
-          />
-          {/* Área invisible para click de borrado */}
-          {onRemove && (() => {
-            const p1 = toSVG(ann.fromX, ann.fromY)
-            const p2 = toSVG(ann.toX, ann.toY)
-            const mx = (p1.x + p2.x) / 2
-            const my = (p1.y + p2.y) / 2
-            return (
-              <circle
-                cx={mx} cy={my} r={8}
-                fill="transparent"
-                style={{ cursor: 'pointer' }}
+      {annotations.map((ann) => {
+        const p0 = toSVG(ann.fromX, ann.fromY)
+        const p2 = toSVG(ann.toX, ann.toY)
+        const cp = getControlPt(ann)
+        const isCurvable = CURVABLE.includes(ann.type)
+        const isCurved = ann.cx !== undefined && ann.cy !== undefined
+        // Midpoint visual para el botón de borrado
+        const mid = isCurved ? bezierPt(0.5, p0, cp, p2) : { x: (p0.x+p2.x)/2, y: (p0.y+p2.y)/2 }
+
+        return (
+          <g key={ann.id}>
+            <AnnotationShape ann={ann} markerId={`ann-arrow-${ann.type}`} />
+
+            {/* Handle de curvatura (solo para tipos curvables en modo edición) */}
+            {showHandles && isCurvable && (
+              <g>
+                {/* Línea punteada del handle al midpoint de la línea */}
+                {isCurved && (
+                  <line
+                    x1={mid.x} y1={mid.y} x2={cp.x} y2={cp.y}
+                    stroke="rgba(255,255,255,0.25)" strokeWidth={1}
+                    strokeDasharray="3 3" pointerEvents="none"
+                  />
+                )}
+                {/* Handle arrastrabe */}
+                <circle
+                  cx={cp.x} cy={cp.y} r={7}
+                  fill={isCurved ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}
+                  stroke="rgba(255,255,255,0.6)" strokeWidth={1.5}
+                  strokeDasharray={isCurved ? 'none' : '3 2'}
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={(e) => handleControlDrag(e, ann.id)}
+                />
+              </g>
+            )}
+
+            {/* Área de click para borrar (solo en modo select) */}
+            {onRemove && (
+              <circle cx={mid.x} cy={mid.y} r={isCurvable && showHandles ? 4 : 8}
+                fill="transparent" style={{ cursor: 'pointer' }}
                 onClick={() => onRemove(ann.id)}
               />
-            )
-          })()}
-        </g>
-      ))}
+            )}
+          </g>
+        )
+      })}
 
-      {/* Preview de dibujo en curso */}
+      {/* Preview mientras se dibuja */}
       {preview && (
         <g opacity={0.6}>
           <AnnotationShape
-            type={preview.type}
-            fromX={preview.fromX} fromY={preview.fromY}
-            toX={preview.toX} toY={preview.toY}
+            ann={{ id: '__preview', ...preview }}
             markerId={`ann-arrow-${preview.type}`}
           />
         </g>

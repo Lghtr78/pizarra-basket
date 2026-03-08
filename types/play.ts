@@ -24,6 +24,8 @@ export interface Annotation {
   fromY: number
   toX: number
   toY: number
+  cx?: number  // punto de control bezier (porcentaje), undefined = línea recta
+  cy?: number
 }
 
 export interface Keyframe {
