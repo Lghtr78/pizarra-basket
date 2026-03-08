@@ -102,11 +102,11 @@ function buildTiroPath(ann: Annotation): string {
 }
 
 const COLORS: Record<AnnotationType, string> = {
-  desplazamiento: 'rgba(255,255,255,0.9)',
-  pase:           'rgba(250,204,21,0.9)',
-  dribling:       'rgba(249,115,22,0.9)',
-  cortina:        'rgba(96,165,250,0.9)',
-  tiro:           'rgba(248,113,113,0.9)',
+  desplazamiento: 'rgba(20,20,20,0.9)',
+  pase:           'rgba(160,90,0,0.9)',
+  dribling:       'rgba(190,60,0,0.9)',
+  cortina:        'rgba(20,70,190,0.9)',
+  tiro:           'rgba(180,20,20,0.9)',
 }
 
 function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string }) {
@@ -217,15 +217,15 @@ export default function AnnotationLayer({ annotations, preview, onRemove, onMove
                 {isCurved && (
                   <line
                     x1={mid.x} y1={mid.y} x2={cp.x} y2={cp.y}
-                    stroke="rgba(255,255,255,0.25)" strokeWidth={1}
+                    stroke="rgba(0,0,0,0.25)" strokeWidth={1}
                     strokeDasharray="3 3" pointerEvents="none"
                   />
                 )}
                 {/* Handle arrastrabe */}
                 <circle
                   cx={cp.x} cy={cp.y} r={7}
-                  fill={isCurved ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}
-                  stroke="rgba(255,255,255,0.6)" strokeWidth={1.5}
+                  fill={isCurved ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.05)'}
+                  stroke="rgba(0,0,0,0.5)" strokeWidth={1.5}
                   strokeDasharray={isCurved ? 'none' : '3 2'}
                   style={{ cursor: 'grab' }}
                   onMouseDown={(e) => handleControlDrag(e, ann.id)}

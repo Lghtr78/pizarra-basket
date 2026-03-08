@@ -136,7 +136,7 @@ export default function Board() {
         <svg
           ref={svgRef}
           viewBox={`0 0 ${COURT_WIDTH} ${COURT_HEIGHT}`}
-          className="w-full h-auto rounded-xl shadow-2xl border border-white/10"
+          className="w-full h-auto rounded-xl shadow-2xl border border-gray-300"
           style={{ touchAction: 'none', cursor: svgCursor }}
           onMouseDown={handleSVGMouseDown}
           onMouseMove={handleSVGMouseMove}
@@ -185,9 +185,9 @@ export default function Board() {
                 if (isBallTool) { e.stopPropagation(); moveBall(ballPos.x, ballPos.y) }
               }}
             >
-              <circle r={BALL_RADIUS} fill="none" stroke="white" strokeWidth={2.5} />
-              <line x1={-BALL_RADIUS} y1={0} x2={BALL_RADIUS} y2={0} stroke="white" strokeWidth={1} opacity={0.5} />
-              <line x1={0} y1={-BALL_RADIUS} x2={0} y2={BALL_RADIUS} stroke="white" strokeWidth={1} opacity={0.5} />
+              <circle r={BALL_RADIUS} fill="none" stroke="#1f1f1f" strokeWidth={2.5} />
+              <line x1={-BALL_RADIUS} y1={0} x2={BALL_RADIUS} y2={0} stroke="#1f1f1f" strokeWidth={1} opacity={0.5} />
+              <line x1={0} y1={-BALL_RADIUS} x2={0} y2={BALL_RADIUS} stroke="#1f1f1f" strokeWidth={1} opacity={0.5} />
             </g>
           )}
 
@@ -200,8 +200,8 @@ export default function Board() {
                   cx={(i - (play.keyframes.length - 1) / 2) * 16}
                   cy={0}
                   r={5}
-                  fill={i === currentFrameIndex ? 'white' : 'rgba(255,255,255,0.3)'}
-                  stroke="rgba(255,255,255,0.5)"
+                  fill={i === currentFrameIndex ? '#1f1f1f' : 'rgba(0,0,0,0.25)'}
+                  stroke="rgba(0,0,0,0.4)"
                   strokeWidth={1}
                 />
               ))}
