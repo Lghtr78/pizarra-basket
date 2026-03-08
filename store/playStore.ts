@@ -101,6 +101,9 @@ interface PlayStore {
   resetChallenge: () => void
   scoreChallenge: () => number
 
+  // library
+  loadPlay: (play: Play) => void
+
   // serialization
   exportCode: () => string
   importCode: (code: string) => boolean
@@ -311,6 +314,9 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     const score = Math.max(0, Math.round(100 - (totalError / 1410) * 100))
     return score
   },
+
+  loadPlay: (play) =>
+    set({ play: { ...play, id: makeId() }, currentFrameIndex: 0, mode: 'edit' }),
 
   exportCode: () => {
     const { play } = get()
