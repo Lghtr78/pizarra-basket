@@ -137,7 +137,7 @@ function AnnotationShape({ ann, markerId, pathRef, dashProps }: {
       ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
       : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
     return (
-      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={2.5}
+      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={7.5}
         markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
@@ -147,7 +147,7 @@ function AnnotationShape({ ann, markerId, pathRef, dashProps }: {
       ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
       : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
     return (
-      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={2.5}
+      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={7.5}
         strokeDasharray="8 5" markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
@@ -155,7 +155,7 @@ function AnnotationShape({ ann, markerId, pathRef, dashProps }: {
   if (type === 'dribling') {
     return (
       <path ref={pathRef} d={buildZigzagPath(ann)} fill="none"
-        stroke={color} strokeWidth={2.5} markerEnd={`url(#${markerId})`} {...dashProps} />
+        stroke={color} strokeWidth={7.5} markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
 
@@ -163,15 +163,15 @@ function AnnotationShape({ ann, markerId, pathRef, dashProps }: {
     const { line, bar } = buildScreenParts(ann)
     return (
       <g>
-        <path ref={pathRef} d={line} fill="none" stroke={color} strokeWidth={2.5} {...dashProps} />
-        <path d={bar} fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+        <path ref={pathRef} d={line} fill="none" stroke={color} strokeWidth={7.5} {...dashProps} />
+        <path d={bar} fill="none" stroke={color} strokeWidth={10.5} strokeLinecap="round" />
       </g>
     )
   }
 
   if (type === 'tiro') {
     return (
-      <path ref={pathRef} d={buildTiroPath(ann)} fill="none" stroke={color} strokeWidth={2.5}
+      <path ref={pathRef} d={buildTiroPath(ann)} fill="none" stroke={color} strokeWidth={7.5}
         strokeDasharray="6 4" markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }

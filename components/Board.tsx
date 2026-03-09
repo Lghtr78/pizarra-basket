@@ -8,7 +8,7 @@ import NarrativeOverlay from './NarrativeOverlay'
 import { useNarrativeEngine } from '@/hooks/useNarrativeEngine'
 import { AnnotationType } from '@/types/play'
 
-const BALL_RADIUS = 10
+const BALL_RADIUS = 12
 
 // Interpolación sobre curva bezier cuadrática
 function bezierPoint(t: number, p0x: number, p0y: number, cpx: number, cpy: number, p2x: number, p2y: number) {
