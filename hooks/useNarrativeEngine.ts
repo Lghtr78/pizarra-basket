@@ -27,6 +27,8 @@ export interface NarrativeState {
   drawingProgress: number        // 0→1  (stroke-dashoffset)
   currentSegmentIndex: number    // -1 = ninguno activo
   segments: NarrativeSegment[]
+  movingBall: { fromX: number; fromY: number; toX: number; toY: number; cx?: number; cy?: number } | null
+  movingBallProgress: number
 }
 
 // ─── parseDescription ──────────────────────────────────────────────────────────
@@ -61,6 +63,8 @@ const IDLE: NarrativeState = {
   drawingProgress: 0,
   currentSegmentIndex: -1,
   segments: [],
+  movingBall: null,
+  movingBallProgress: 0,
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
@@ -186,18 +190,30 @@ export function useNarrativeEngine({
       }
 
       // ── movement ────────────────────────────────────────────────────────────
+      // Detectar anotación que mueve la pelota en este frame
+      const driblingAnn = annots.find((a) => a.type === 'dribling')
+      const paseAnn     = annots.find((a) => a.type === 'pase')
+      const ballAnn     = driblingAnn ?? paseAnn
+      const movingBall  = ballAnn
+        ? { fromX: ballAnn.fromX, fromY: ballAnn.fromY, toX: ballAnn.toX, toY: ballAnn.toY, cx: ballAnn.cx, cy: ballAnn.cy }
+        : null
+
       setState((s) => ({
         ...s,
         phase: 'movement',
         animProgress: 0,
         annotationOpacity: 0,
         visibleAnnotationIds: [],
+        movingBall,
+        movingBallProgress: 0,
       }))
-      await rAF(demoSpeed, (t) => setState((s) => ({ ...s, animProgress: t })))
+      await rAF(demoSpeed, (t) =>
+        setState((s) => ({ ...s, animProgress: t, movingBallProgress: t }))
+      )
       if (!alive()) return
 
       // ── complete ────────────────────────────────────────────────────────────
-      setState((s) => ({ ...s, phase: 'complete' }))
+      setState((s) => ({ ...s, phase: 'complete', movingBall: null, movingBallProgress: 0 }))
       advanceDemoFrame()
     }
 

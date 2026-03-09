@@ -15,11 +15,14 @@ export default function NarrativeOverlay({ segments, currentIndex, frameKey }: P
   return (
     <div
       key={`${frameKey}-${currentIndex}`}
-      className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none"
+      className="absolute bottom-0 left-0 right-0 mx-2 mb-2 flex justify-center pointer-events-none"
       style={{ animation: 'desc-fade-in 0.35s ease-out' }}
     >
-      <div className="bg-black/75 text-white text-sm px-4 py-2 rounded-xl text-center backdrop-blur-sm max-w-[90%]">
-        {text}
+      <div className="bg-black/75 text-white px-5 py-5 rounded-xl text-center backdrop-blur-sm max-w-[90%] min-h-[120px] flex flex-col items-center justify-center">
+        <p className="text-base leading-relaxed">{text}</p>
+        {segments.length > 1 && (
+          <div className="w-8 h-[2px] bg-orange-400 mx-auto mt-3" />
+        )}
       </div>
     </div>
   )
