@@ -81,6 +81,8 @@ interface PlayStore {
   addAnnotation: (ann: Omit<Annotation, 'id'>) => void
   removeAnnotation: (annId: string) => void
   moveAnnotationControl: (annId: string, cx: number, cy: number) => void
+  moveAnnotationFrom: (annId: string, fromX: number, fromY: number) => void
+  moveAnnotationTo: (annId: string, toX: number, toY: number) => void
   moveBall: (x: number, y: number) => void
   removeBall: () => void
   updateKeyframeDescription: (frameIndex: number, description: string) => void
@@ -222,7 +224,27 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     set((s) => {
       const frames = [...s.play.keyframes]
       const frame = frames[s.currentFrameIndex]
-      const annotations = [...(frame.annotations ?? []), { ...ann, id: makeId() }]
+
+      // Detectar jugador cercano al origen de la flecha
+      let playerId: string | undefined = undefined
+      if (ann.type === 'desplazamiento') {
+        const THRESHOLD = 8
+        let minDist = Infinity
+        for (const pos of frame.positions) {
+          const dx = pos.x - ann.fromX
+          const dy = pos.y - ann.fromY
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < THRESHOLD && dist < minDist) {
+            minDist = dist
+            playerId = pos.playerId
+          }
+        }
+      }
+
+      const annotations = [
+        ...(frame.annotations ?? []),
+        { ...ann, id: makeId(), ...(playerId ? { playerId } : {}) }
+      ]
       frames[s.currentFrameIndex] = { ...frame, annotations }
       return { play: { ...s.play, keyframes: frames } }
     }),
@@ -246,6 +268,36 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       frames[s.currentFrameIndex] = { ...frame, annotations }
       return { play: { ...s.play, keyframes: frames } }
     }),
+
+  moveAnnotationFrom: (annId, fromX, fromY) =>
+    set((s) => ({
+      play: {
+        ...s.play,
+        keyframes: s.play.keyframes.map((kf, i) =>
+          i !== s.currentFrameIndex ? kf : {
+            ...kf,
+            annotations: (kf.annotations ?? []).map((ann) =>
+              ann.id !== annId ? ann : { ...ann, fromX, fromY }
+            ),
+          }
+        ),
+      },
+    })),
+
+  moveAnnotationTo: (annId, toX, toY) =>
+    set((s) => ({
+      play: {
+        ...s.play,
+        keyframes: s.play.keyframes.map((kf, i) =>
+          i !== s.currentFrameIndex ? kf : {
+            ...kf,
+            annotations: (kf.annotations ?? []).map((ann) =>
+              ann.id !== annId ? ann : { ...ann, toX, toY }
+            ),
+          }
+        ),
+      },
+    })),
 
   moveBall: (x, y) =>
     set((s) => {

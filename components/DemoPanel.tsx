@@ -3,7 +3,11 @@ import React from 'react'
 import { usePlayStore } from '@/store/playStore'
 import { DEMO_PLAYS } from '@/lib/demoPlays'
 
-export default function DemoPanel() {
+interface DemoPanelProps {
+  onPlay?: () => void
+}
+
+export default function DemoPanel({ onPlay }: DemoPanelProps) {
   const {
     play,
     currentFrameIndex,
@@ -27,6 +31,7 @@ export default function DemoPanel() {
     } else {
       setDemoPlaying(!isDemoPlaying)
     }
+    if (!isDemoPlaying) onPlay?.()
   }
 
   return (
@@ -140,12 +145,12 @@ export default function DemoPanel() {
       {/* Velocidad */}
       <div>
         <label className="text-xs text-white/60 uppercase tracking-wider">
-          Velocidad — {demoSpeed < 800 ? 'Rápida' : demoSpeed < 1400 ? 'Normal' : 'Lenta'}
+          Velocidad — {demoSpeed < 1200 ? 'Rápida' : demoSpeed < 2800 ? 'Normal' : 'Lenta'}
         </label>
         <input
           type="range"
           min={400}
-          max={2500}
+          max={4200}
           step={100}
           value={demoSpeed}
           onChange={(e) => setDemoSpeed(Number(e.target.value))}
