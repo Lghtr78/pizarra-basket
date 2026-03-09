@@ -147,6 +147,19 @@ export default function Board() {
   const annotations = currentFrame.annotations ?? []
   const ballPos = currentFrame.ballPosition
 
+  // Posición efectiva de la pelota — movida por el engine en pase/dribling
+  const movingBall = engine.movingBall
+  let effectiveBallX: number = ballPos?.x ?? (movingBall?.fromX ?? 50)
+  let effectiveBallY: number = ballPos?.y ?? (movingBall?.fromY ?? 50)
+  if (movingBall && engine.movingBallProgress > 0) {
+    const t   = engine.movingBallProgress
+    const cpx = movingBall.cx ?? (movingBall.fromX + movingBall.toX) / 2
+    const cpy = movingBall.cy ?? (movingBall.fromY + movingBall.toY) / 2
+    const m   = 1 - t
+    effectiveBallX = m*m*movingBall.fromX + 2*m*t*cpx + t*t*movingBall.toX
+    effectiveBallY = m*m*movingBall.fromY + 2*m*t*cpy + t*t*movingBall.toY
+  }
+
   const preview =
     isDrawingTool && drawPreview
       ? {
@@ -243,10 +256,10 @@ export default function Board() {
             })}
           </g>
 
-          {/* Pelota */}
-          {ballPos && (
+          {/* Pelota — visible también durante movimiento de pase/dribling */}
+          {(ballPos || movingBall) && (
             <g
-              transform={`translate(${(ballPos.x / 100) * COURT_WIDTH}, ${(ballPos.y / 100) * COURT_HEIGHT})`}
+              transform={`translate(${(effectiveBallX / 100) * COURT_WIDTH}, ${(effectiveBallY / 100) * COURT_HEIGHT})`}
               style={{ cursor: isBallTool ? 'cell' : 'default' }}
               onMouseDown={handleBallMouseDown}
             >
