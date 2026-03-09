@@ -2,7 +2,7 @@ export type TeamRole = 'offense' | 'defense'
 
 export interface Player {
   id: string
-  label: string // '1', '2', '3', '4', '5' o 'D1'...'D5'
+  label: string
   role: TeamRole
   color: string
 }
@@ -13,14 +13,34 @@ export interface PlayerPosition {
   y: number // porcentaje del alto de la cancha (0-100)
 }
 
+export type AnnotationType = 'desplazamiento' | 'pase' | 'dribling' | 'cortina' | 'tiro'
+
+export type EditorTool = 'select' | AnnotationType | 'ball'
+
+export interface Annotation {
+  id: string
+  type: AnnotationType
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  cx?: number  // punto de control bezier (porcentaje), undefined = línea recta
+  cy?: number
+  playerId?: string  // jugador vinculado (solo desplazamiento)
+}
+
 export interface Keyframe {
   id: string
   positions: PlayerPosition[]
+  annotations?: Annotation[]
+  ballPosition?: { x: number; y: number }
+  description?: string
 }
 
 export interface Play {
   id: string
   name: string
+  description?: string
   keyframes: Keyframe[]
 }
 

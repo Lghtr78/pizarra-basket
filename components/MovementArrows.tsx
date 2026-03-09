@@ -27,7 +27,7 @@ export default function MovementArrows({ from, to }: Props) {
           refY="3"
           orient="auto"
         >
-          <path d="M 0 0 L 6 3 L 0 6 Z" fill="rgba(255,255,255,0.8)" />
+          <path d="M 0 0 L 6 3 L 0 6 Z" fill="rgba(20,20,20,0.8)" />
         </marker>
       </defs>
       {from.map((fp) => {
@@ -46,7 +46,7 @@ export default function MovementArrows({ from, to }: Props) {
             y1={f.y}
             x2={t.x}
             y2={t.y}
-            stroke="rgba(255,255,255,0.6)"
+            stroke="rgba(20,20,20,0.6)"
             strokeWidth={2}
             strokeDasharray="6 4"
             markerEnd="url(#arrowhead)"

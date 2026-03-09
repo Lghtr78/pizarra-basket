@@ -1,64 +1,65 @@
 'use client'
 import React from 'react'
 
-// Cancha de basquet SVG — vista desde arriba, media cancha
-// viewBox: 0 0 500 470
-export const COURT_WIDTH = 500
-export const COURT_HEIGHT = 470
+// Media cancha FIBA — escala exacta 1 m = 100 unidades SVG
+// viewBox: 0 0 1500 1400
+// Origen: x=0 línea lateral izq, y=0 línea de fondo (aro), y=1400 medio campo
+
+export const COURT_WIDTH  = 1500
+export const COURT_HEIGHT = 1400
+
+const S = '#1a1a1a'  // stroke color
+const SW = 5         // stroke-width (= 5 cm reglamentario FIBA)
 
 export default function Court() {
   return (
     <g>
-      {/* Piso */}
-      <rect x={0} y={0} width={COURT_WIDTH} height={COURT_HEIGHT} fill="#c8a96e" />
+      {/* ── Piso ── */}
+      <rect width={1500} height={1400} fill="#ffffff" />
 
-      {/* Líneas exteriores */}
-      <rect x={10} y={10} width={480} height={450} fill="none" stroke="#fff" strokeWidth={3} />
+      {/* ── Borde de la cancha ── */}
+      <rect x={0} y={0} width={1500} height={1400}
+        stroke={S} strokeWidth={SW} fill="none" />
 
-      {/* Línea de fondo (arriba = aro) */}
-      {/* Línea de medio campo */}
-      <line x1={10} y1={235} x2={490} y2={235} stroke="#fff" strokeWidth={2} />
+      {/* ── Zona pintada: 4.90 m × 5.80 m, centrada en x=750 ── */}
+      <rect x={505} y={0} width={490} height={580}
+        stroke={S} strokeWidth={SW} fill="none" />
 
-      {/* Círculo central */}
-      <circle cx={250} cy={235} r={40} fill="none" stroke="#fff" strokeWidth={2} />
+      {/* ── Semicírculo de tiro libre exterior (hacia el campo) ── */}
+      <path d="M 570 580 A 180 180 0 0 0 930 580"
+        stroke={S} strokeWidth={SW} fill="none" />
 
-      {/* Zona pintada (paint) */}
-      <rect x={155} y={10} width={190} height={170} fill="#b8955a" stroke="#fff" strokeWidth={2} />
+      {/* ── Semicírculo de tiro libre interior (hacia la zona) — discontinuo ── */}
+      <path d="M 570 580 A 180 180 0 0 1 930 580"
+        stroke={S} strokeWidth={SW} fill="none"
+        strokeDasharray="20 15" />
 
-      {/* Línea de tiro libre */}
-      <line x1={155} y1={180} x2={345} y2={180} stroke="#fff" strokeWidth={2} />
+      {/* ── Semicírculo de no-carga (charge): r=1.25 m ── */}
+      <path d="M 625 157.5 A 125 125 0 0 0 875 157.5"
+        stroke={S} strokeWidth={SW} fill="none" />
 
-      {/* Semicírculo tiro libre */}
-      <path
-        d="M 155 180 A 95 95 0 0 0 345 180"
-        fill="none"
-        stroke="#fff"
-        strokeWidth={2}
-      />
+      {/* ── Tablero: línea principal ── */}
+      <line x1={660} y1={120} x2={840} y2={120}
+        stroke={S} strokeWidth={SW} />
 
-      {/* Zona restringida (restricted area) */}
-      <path
-        d="M 213 10 A 37 37 0 0 0 287 10"
-        fill="none"
-        stroke="#fff"
-        strokeWidth={2}
-      />
+      {/* ── Tablero: rectángulo interior (0.59 m × 0.45 m) ── */}
+      <rect x={720.5} y={75} width={59} height={45}
+        stroke={S} strokeWidth={SW} fill="none" />
 
-      {/* Aro */}
-      <circle cx={250} cy={22} r={12} fill="none" stroke="#ff4500" strokeWidth={3} />
-      {/* Tablero */}
-      <rect x={210} y={10} width={80} height={6} fill="none" stroke="#fff" strokeWidth={2} />
+      {/* ── Aro: r = 0.225 m ── */}
+      <circle cx={750} cy={157.5} r={22.5}
+        stroke="#cc3300" strokeWidth={SW} fill="none" />
 
-      {/* Arco de 3 puntos */}
-      <path
-        d="M 30 10 A 225 225 0 0 1 470 10"
-        fill="none"
-        stroke="#fff"
-        strokeWidth={2}
-      />
-      {/* Líneas laterales del 3 (rectas) */}
-      <line x1={30} y1={10} x2={30} y2={105} stroke="#fff" strokeWidth={2} />
-      <line x1={470} y1={10} x2={470} y2={105} stroke="#fff" strokeWidth={2} />
+      {/* ── Línea de 3 puntos ── */}
+      {/* Recta lateral izquierda: x=90, de fondo (y=0) a punto de tangencia (y=299) */}
+      <line x1={90} y1={0} x2={90} y2={299}
+        stroke={S} strokeWidth={SW} />
+      {/* Recta lateral derecha */}
+      <line x1={1410} y1={0} x2={1410} y2={299}
+        stroke={S} strokeWidth={SW} />
+      {/* Arco: de (90,299) a (1410,299), pasa por (750,832.5) — sweep=0 antihorario */}
+      <path d="M 90 299 A 675 675 0 0 0 1410 299"
+        stroke={S} strokeWidth={SW} fill="none" />
     </g>
   )
 }
