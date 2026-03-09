@@ -31,12 +31,12 @@ const DEFAULT_PLAYERS: Player[] = [
   { id: 'd5', label: 'D', role: 'defense', color: '#3b82f6' },
 ]
 
-const DEFAULT_POSITIONS: PlayerPosition[] = [
-  { playerId: 'o1', x: 50, y: 75 },
-  { playerId: 'o2', x: 25, y: 60 },
-  { playerId: 'o3', x: 75, y: 60 },
-  { playerId: 'o4', x: 20, y: 40 },
-  { playerId: 'o5', x: 80, y: 40 },
+const DEFAULT_INITIAL_POSITIONS: PlayerPosition[] = [
+  { playerId: 'o1', x: 50, y: 63 },   // Base (PG) — tope del arco de 3, centro
+  { playerId: 'o2', x: 83, y: 47 },   // Escolta (SG) — ala derecha, línea de 3
+  { playerId: 'o3', x: 17, y: 47 },   // Alero (SF) — ala izquierda, línea de 3
+  { playerId: 'o4', x: 94, y: 16 },   // Ala-pívot (PF) — esquina derecha (corner 3)
+  { playerId: 'o5', x: 6,  y: 16 },   // Pívot (C) — esquina izquierda (corner 3)
   { playerId: 'd1', x: 50, y: 55 },
   { playerId: 'd2', x: 30, y: 45 },
   { playerId: 'd3', x: 70, y: 45 },
@@ -53,7 +53,7 @@ function makeInitialPlay(): Play {
     id: makeId(),
     name: 'Nueva jugada',
     keyframes: [
-      { id: makeId(), positions: DEFAULT_POSITIONS, annotations: [] },
+      { id: makeId(), positions: DEFAULT_INITIAL_POSITIONS, annotations: [] },
     ],
   }
 }
@@ -71,9 +71,11 @@ interface PlayStore {
 
   // edit actions
   setPlayName: (name: string) => void
+  updatePlayDescription: (description: string) => void
   movePlayer: (playerId: string, x: number, y: number) => void
   addKeyframe: () => void
   removeKeyframe: (frameIndex: number) => void
+  insertFrameAfter: (index: number) => void
   goToFrame: (index: number) => void
   setEditTool: (tool: EditorTool) => void
   addAnnotation: (ann: Omit<Annotation, 'id'>) => void
@@ -81,6 +83,7 @@ interface PlayStore {
   moveAnnotationControl: (annId: string, cx: number, cy: number) => void
   moveBall: (x: number, y: number) => void
   removeBall: () => void
+  updateKeyframeDescription: (frameIndex: number, description: string) => void
 
   // defender management
   addDefender: () => void
@@ -121,6 +124,9 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   setPlayName: (name) =>
     set((s) => ({ play: { ...s.play, name } })),
 
+  updatePlayDescription: (description) =>
+    set((s) => ({ play: { ...s.play, description: description || undefined } })),
+
   movePlayer: (playerId, x, y) =>
     set((s) => {
       const frames = [...s.play.keyframes]
@@ -153,6 +159,22 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const keyframes = s.play.keyframes.filter((_, i) => i !== frameIndex)
       const currentFrameIndex = Math.min(s.currentFrameIndex, keyframes.length - 1)
       return { play: { ...s.play, keyframes }, currentFrameIndex }
+    }),
+
+  insertFrameAfter: (index) =>
+    set((s) => {
+      const source = s.play.keyframes[index]
+      const newFrame: Keyframe = {
+        id: makeId(),
+        positions: source.positions.map((p) => ({ ...p })),
+        annotations: [],
+      }
+      const keyframes = [
+        ...s.play.keyframes.slice(0, index + 1),
+        newFrame,
+        ...s.play.keyframes.slice(index + 1),
+      ]
+      return { play: { ...s.play, keyframes }, currentFrameIndex: index + 1 }
     }),
 
   goToFrame: (index) => set({ currentFrameIndex: index }),
@@ -238,6 +260,13 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const frames = [...s.play.keyframes]
       const frame = frames[s.currentFrameIndex]
       frames[s.currentFrameIndex] = { ...frame, ballPosition: undefined }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  updateKeyframeDescription: (frameIndex, description) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      frames[frameIndex] = { ...frames[frameIndex], description: description || undefined }
       return { play: { ...s.play, keyframes: frames } }
     }),
 

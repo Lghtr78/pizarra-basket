@@ -6,6 +6,8 @@ const PICK_AND_ROLL: Play = {
   keyframes: [
     {
       id: 'pnr-1',
+      description: 'Posición inicial. El 1 tiene el balón en la cima del arco, el 5 va a subir a poner la cortina.',
+      ballPosition: { x: 50, y: 72 },
       positions: [
         { playerId: 'o1', x: 50, y: 72 },
         { playerId: 'o2', x: 15, y: 58 },
@@ -21,50 +23,53 @@ const PICK_AND_ROLL: Play = {
     },
     {
       id: 'pnr-2',
+      description: 'El 5 sube a poner la cortina sobre el defensor del 1. El defensor del 5 lo sigue.',
+      ballPosition: { x: 50, y: 72 },
       positions: [
-        // 5 sube a poner el screen para 1
         { playerId: 'o1', x: 50, y: 72 },
         { playerId: 'o2', x: 10, y: 55 },
         { playerId: 'o3', x: 90, y: 55 },
         { playerId: 'o4', x: 15, y: 36 },
-        { playerId: 'o5', x: 55, y: 62 }, // 5 sube al screen
+        { playerId: 'o5', x: 55, y: 62 },
         { playerId: 'd1', x: 50, y: 66 },
         { playerId: 'd2', x: 10, y: 50 },
         { playerId: 'd3', x: 90, y: 50 },
         { playerId: 'd4', x: 20, y: 30 },
-        { playerId: 'd5', x: 60, y: 56 }, // d5 sigue a 5
+        { playerId: 'd5', x: 60, y: 56 },
       ],
     },
     {
       id: 'pnr-3',
+      description: 'El 1 usa la cortina y sale por izquierda. El 5 inicia el roll hacia el aro.',
+      ballPosition: { x: 38, y: 62 },
       positions: [
-        // 1 usa el screen, 5 empieza el roll
-        { playerId: 'o1', x: 38, y: 62 }, // sale por izquierda
+        { playerId: 'o1', x: 38, y: 62 },
         { playerId: 'o2', x: 10, y: 48 },
         { playerId: 'o3', x: 90, y: 48 },
         { playerId: 'o4', x: 15, y: 36 },
-        { playerId: 'o5', x: 50, y: 48 }, // empieza el roll
-        { playerId: 'd1', x: 42, y: 58 }, // persigue a 1
+        { playerId: 'o5', x: 50, y: 48 },
+        { playerId: 'd1', x: 42, y: 58 },
         { playerId: 'd2', x: 10, y: 44 },
         { playerId: 'd3', x: 90, y: 44 },
         { playerId: 'd4', x: 20, y: 30 },
-        { playerId: 'd5', x: 52, y: 40 }, // hedging
+        { playerId: 'd5', x: 52, y: 40 },
       ],
     },
     {
       id: 'pnr-4',
+      description: '¡El 1 pasa al 5 que llegó solo al aro! La defensa no puede cubrir los dos.',
+      ballPosition: { x: 48, y: 20 },
       positions: [
-        // 1 con balón en el codo, 5 llegó al aro
         { playerId: 'o1', x: 30, y: 52 },
         { playerId: 'o2', x: 10, y: 42 },
         { playerId: 'o3', x: 90, y: 42 },
         { playerId: 'o4', x: 15, y: 36 },
-        { playerId: 'o5', x: 48, y: 20 }, // llegó al aro
+        { playerId: 'o5', x: 48, y: 20 },
         { playerId: 'd1', x: 34, y: 48 },
         { playerId: 'd2', x: 10, y: 38 },
         { playerId: 'd3', x: 90, y: 38 },
         { playerId: 'd4', x: 20, y: 30 },
-        { playerId: 'd5', x: 50, y: 32 }, // ayudando bajo
+        { playerId: 'd5', x: 50, y: 32 },
       ],
     },
   ],
@@ -76,12 +81,14 @@ const DRIVE_AND_KICK: Play = {
   keyframes: [
     {
       id: 'dk-1',
+      description: 'Posición inicial. El 1 con el balón en la cima del arco, el 5 en el poste alto.',
+      ballPosition: { x: 50, y: 72 },
       positions: [
         { playerId: 'o1', x: 50, y: 72 },
         { playerId: 'o2', x: 15, y: 55 },
         { playerId: 'o3', x: 85, y: 55 },
         { playerId: 'o4', x: 12, y: 36 },
-        { playerId: 'o5', x: 50, y: 28 }, // 5 en el poste alto
+        { playerId: 'o5', x: 50, y: 28 },
         { playerId: 'd1', x: 50, y: 65 },
         { playerId: 'd2', x: 15, y: 50 },
         { playerId: 'd3', x: 85, y: 50 },
@@ -91,48 +98,51 @@ const DRIVE_AND_KICK: Play = {
     },
     {
       id: 'dk-2',
+      description: 'El 1 penetra hacia la derecha. Los alas abren espacio hacia los corners.',
+      ballPosition: { x: 62, y: 62 },
       positions: [
-        // 1 penetra hacia la derecha
         { playerId: 'o1', x: 62, y: 62 },
-        { playerId: 'o2', x: 10, y: 46 }, // abre corner izq
-        { playerId: 'o3', x: 90, y: 46 }, // sale del corner
-        { playerId: 'o4', x: 10, y: 28 }, // corner izq profundo
+        { playerId: 'o2', x: 10, y: 46 },
+        { playerId: 'o3', x: 90, y: 46 },
+        { playerId: 'o4', x: 10, y: 28 },
         { playerId: 'o5', x: 50, y: 26 },
         { playerId: 'd1', x: 60, y: 58 },
         { playerId: 'd2', x: 10, y: 42 },
-        { playerId: 'd3', x: 80, y: 42 }, // cierra
+        { playerId: 'd3', x: 80, y: 42 },
         { playerId: 'd4', x: 15, y: 26 },
         { playerId: 'd5', x: 52, y: 20 },
       ],
     },
     {
       id: 'dk-3',
+      description: 'El 1 llega al fondo. El 3 está completamente abierto en el ala derecha.',
+      ballPosition: { x: 72, y: 50 },
       positions: [
-        // 1 penetra fondo, 3 abierto en ala
         { playerId: 'o1', x: 72, y: 50 },
         { playerId: 'o2', x: 8, y: 40 },
-        { playerId: 'o3', x: 92, y: 40 }, // abierto!
+        { playerId: 'o3', x: 92, y: 40 },
         { playerId: 'o4', x: 8, y: 26 },
         { playerId: 'o5', x: 50, y: 24 },
         { playerId: 'd1', x: 65, y: 46 },
         { playerId: 'd2', x: 10, y: 36 },
-        { playerId: 'd3', x: 86, y: 36 }, // corriendo a cerrar
+        { playerId: 'd3', x: 86, y: 36 },
         { playerId: 'd4', x: 15, y: 22 },
         { playerId: 'd5', x: 52, y: 18 },
       ],
     },
     {
       id: 'dk-4',
+      description: '¡Kick out al 3! Tiro abierto de tres. El defensor llega tarde.',
+      ballPosition: { x: 94, y: 36 },
       positions: [
-        // Kick out a 3, tiro abierto
         { playerId: 'o1', x: 65, y: 44 },
         { playerId: 'o2', x: 8, y: 36 },
-        { playerId: 'o3', x: 94, y: 36 }, // recibe y tira
+        { playerId: 'o3', x: 94, y: 36 },
         { playerId: 'o4', x: 8, y: 22 },
-        { playerId: 'o5', x: 52, y: 20 }, // ataca rebote
+        { playerId: 'o5', x: 52, y: 20 },
         { playerId: 'd1', x: 60, y: 40 },
         { playerId: 'd2', x: 10, y: 32 },
-        { playerId: 'd3', x: 90, y: 30 }, // llega tarde
+        { playerId: 'd3', x: 90, y: 30 },
         { playerId: 'd4', x: 15, y: 20 },
         { playerId: 'd5', x: 55, y: 16 },
       ],
@@ -146,24 +156,26 @@ const FAST_BREAK: Play = {
   keyframes: [
     {
       id: 'fb-1',
+      description: 'Contraataque 3 vs 2. El 1 conduce al centro, el 2 y el 3 abren carriles por los laterales.',
+      ballPosition: { x: 50, y: 70 },
       positions: [
-        // 3 ofensivos corren contra 2 defensivos
         { playerId: 'o1', x: 50, y: 70 },
         { playerId: 'o2', x: 20, y: 62 },
         { playerId: 'o3', x: 80, y: 62 },
-        { playerId: 'o4', x: 32, y: 80 }, // trailing
-        { playerId: 'o5', x: 68, y: 80 }, // trailing
-        { playerId: 'd1', x: 50, y: 82 }, // atrás
-        { playerId: 'd2', x: 28, y: 75 }, // atrás
-        { playerId: 'd3', x: 72, y: 75 }, // atrás
-        { playerId: 'd4', x: 36, y: 42 }, // en posición
-        { playerId: 'd5', x: 64, y: 42 }, // en posición
+        { playerId: 'o4', x: 32, y: 80 },
+        { playerId: 'o5', x: 68, y: 80 },
+        { playerId: 'd1', x: 50, y: 82 },
+        { playerId: 'd2', x: 28, y: 75 },
+        { playerId: 'd3', x: 72, y: 75 },
+        { playerId: 'd4', x: 36, y: 42 },
+        { playerId: 'd5', x: 64, y: 42 },
       ],
     },
     {
       id: 'fb-2',
+      description: 'Los defensores colapsan al centro. El 1 busca al compañero libre en las bandas.',
+      ballPosition: { x: 50, y: 56 },
       positions: [
-        // 1 conduce, 2 y 3 abren carriles
         { playerId: 'o1', x: 50, y: 56 },
         { playerId: 'o2', x: 12, y: 48 },
         { playerId: 'o3', x: 88, y: 48 },
@@ -172,40 +184,42 @@ const FAST_BREAK: Play = {
         { playerId: 'd1', x: 50, y: 70 },
         { playerId: 'd2', x: 28, y: 62 },
         { playerId: 'd3', x: 72, y: 62 },
-        { playerId: 'd4', x: 40, y: 38 }, // colapsa al centro
+        { playerId: 'd4', x: 40, y: 38 },
         { playerId: 'd5', x: 60, y: 38 },
       ],
     },
     {
       id: 'fb-3',
+      description: 'El 1 pasa al 3 en el ala derecha. El 5 ataca el aro por el centro.',
+      ballPosition: { x: 88, y: 36 },
       positions: [
-        // 1 pasa a 3, d5 va a cerrar
         { playerId: 'o1', x: 44, y: 46 },
         { playerId: 'o2', x: 10, y: 36 },
-        { playerId: 'o3', x: 88, y: 36 }, // recibe el pase
+        { playerId: 'o3', x: 88, y: 36 },
         { playerId: 'o4', x: 32, y: 55 },
-        { playerId: 'o5', x: 56, y: 28 }, // ataca el aro
+        { playerId: 'o5', x: 56, y: 28 },
         { playerId: 'd1', x: 50, y: 56 },
         { playerId: 'd2', x: 25, y: 50 },
         { playerId: 'd3', x: 75, y: 50 },
-        { playerId: 'd4', x: 44, y: 30 }, // ayuda al centro
-        { playerId: 'd5', x: 82, y: 30 }, // cierra sobre 3
+        { playerId: 'd4', x: 44, y: 30 },
+        { playerId: 'd5', x: 82, y: 30 },
       ],
     },
     {
       id: 'fb-4',
+      description: '¡El 3 pasa al 5 que está solo bajo el aro! Bandeja fácil. El defensor llega tarde.',
+      ballPosition: { x: 50, y: 16 },
       positions: [
-        // 3 pasa al 5 solo debajo del aro
         { playerId: 'o1', x: 42, y: 40 },
         { playerId: 'o2', x: 8, y: 30 },
         { playerId: 'o3', x: 86, y: 30 },
         { playerId: 'o4', x: 32, y: 48 },
-        { playerId: 'o5', x: 50, y: 16 }, // solo al aro!
+        { playerId: 'o5', x: 50, y: 16 },
         { playerId: 'd1', x: 48, y: 48 },
         { playerId: 'd2', x: 22, y: 42 },
         { playerId: 'd3', x: 74, y: 42 },
         { playerId: 'd4', x: 48, y: 26 },
-        { playerId: 'd5', x: 80, y: 24 }, // llega tarde
+        { playerId: 'd5', x: 80, y: 24 },
       ],
     },
   ],
@@ -217,13 +231,14 @@ const ZONE_ATTACK: Play = {
   keyframes: [
     {
       id: 'zone-1',
+      description: 'Ataque a zona 2-3. El 1 con el balón en la cima, el 5 hace un flash al poste medio.',
+      ballPosition: { x: 50, y: 72 },
       positions: [
         { playerId: 'o1', x: 50, y: 72 },
         { playerId: 'o2', x: 22, y: 60 },
         { playerId: 'o3', x: 78, y: 60 },
         { playerId: 'o4', x: 18, y: 38 },
-        { playerId: 'o5', x: 50, y: 32 }, // flash al poste
-        // Zona 2-3
+        { playerId: 'o5', x: 50, y: 32 },
         { playerId: 'd1', x: 36, y: 46 },
         { playerId: 'd2', x: 64, y: 46 },
         { playerId: 'd3', x: 20, y: 28 },
@@ -233,49 +248,52 @@ const ZONE_ATTACK: Play = {
     },
     {
       id: 'zone-2',
+      description: 'Pase al 2 en el ala izquierda. Toda la zona se desplaza hacia ese lado.',
+      ballPosition: { x: 18, y: 58 },
       positions: [
-        // Pase a 2 en ala izq, zona se mueve
         { playerId: 'o1', x: 50, y: 70 },
-        { playerId: 'o2', x: 18, y: 58 }, // recibe
+        { playerId: 'o2', x: 18, y: 58 },
         { playerId: 'o3', x: 82, y: 56 },
-        { playerId: 'o4', x: 12, y: 36 }, // corner izq
+        { playerId: 'o4', x: 12, y: 36 },
         { playerId: 'o5', x: 50, y: 30 },
-        { playerId: 'd1', x: 24, y: 46 }, // zona se mueve izq
+        { playerId: 'd1', x: 24, y: 46 },
         { playerId: 'd2', x: 58, y: 44 },
-        { playerId: 'd3', x: 15, y: 28 }, // cierra a 4
+        { playerId: 'd3', x: 15, y: 28 },
         { playerId: 'd4', x: 50, y: 24 },
         { playerId: 'd5', x: 82, y: 28 },
       ],
     },
     {
       id: 'zone-3',
+      description: 'Swing rápido al 3 en el ala derecha. ¡La zona está desbalanceada y tarda en reaccionar!',
+      ballPosition: { x: 85, y: 54 },
       positions: [
-        // Swing rápido a 3 en ala derecha, zona desbalanceada
         { playerId: 'o1', x: 50, y: 68 },
         { playerId: 'o2', x: 18, y: 56 },
-        { playerId: 'o3', x: 85, y: 54 }, // recibe swing
+        { playerId: 'o3', x: 85, y: 54 },
         { playerId: 'o4', x: 12, y: 34 },
         { playerId: 'o5', x: 50, y: 28 },
-        { playerId: 'd1', x: 34, y: 46 }, // zona desbalanceada
-        { playerId: 'd2', x: 68, y: 44 }, // tarda en cerrar
+        { playerId: 'd1', x: 34, y: 46 },
+        { playerId: 'd2', x: 68, y: 44 },
         { playerId: 'd3', x: 18, y: 28 },
         { playerId: 'd4', x: 50, y: 24 },
-        { playerId: 'd5', x: 80, y: 26 }, // cierra a 3
+        { playerId: 'd5', x: 80, y: 26 },
       ],
     },
     {
       id: 'zone-4',
+      description: '¡El 3 encuentra al 5 en el boquete de la zona! Tiro cómodo cerca del aro.',
+      ballPosition: { x: 50, y: 22 },
       positions: [
-        // 5 recibe pase en el boquete de la zona
         { playerId: 'o1', x: 50, y: 66 },
         { playerId: 'o2', x: 15, y: 52 },
         { playerId: 'o3', x: 85, y: 52 },
         { playerId: 'o4', x: 10, y: 30 },
-        { playerId: 'o5', x: 50, y: 22 }, // en el boquete!
+        { playerId: 'o5', x: 50, y: 22 },
         { playerId: 'd1', x: 30, y: 44 },
         { playerId: 'd2', x: 70, y: 44 },
-        { playerId: 'd3', x: 18, y: 26 }, // no puede llegar a 5
-        { playerId: 'd4', x: 50, y: 26 }, // colapsando tarde
+        { playerId: 'd3', x: 18, y: 26 },
+        { playerId: 'd4', x: 50, y: 26 },
         { playerId: 'd5', x: 82, y: 26 },
       ],
     },

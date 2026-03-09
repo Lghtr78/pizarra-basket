@@ -33,11 +33,13 @@ export interface Keyframe {
   positions: PlayerPosition[]
   annotations?: Annotation[]
   ballPosition?: { x: number; y: number }
+  description?: string
 }
 
 export interface Play {
   id: string
   name: string
+  description?: string
   keyframes: Keyframe[]
 }
 

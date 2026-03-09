@@ -104,6 +104,25 @@ export default function Board() {
     [isDrawingTool, getSVGCoords, addAnnotation, editTool]
   )
 
+  // T4: drag de la pelota con herramienta ball
+  const handleBallMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isBallTool) return
+      e.stopPropagation()
+      const move = (ev: MouseEvent) => {
+        const coords = getSVGCoords(ev.clientX, ev.clientY)
+        if (coords) moveBall(coords.x, coords.y)
+      }
+      const up = () => {
+        window.removeEventListener('mousemove', move)
+        window.removeEventListener('mouseup', up)
+      }
+      window.addEventListener('mousemove', move)
+      window.addEventListener('mouseup', up)
+    },
+    [isBallTool, getSVGCoords, moveBall]
+  )
+
   const currentFrame = play.keyframes[currentFrameIndex]
   const prevFrame = currentFrameIndex > 0 ? play.keyframes[currentFrameIndex - 1] : null
 
@@ -129,6 +148,8 @@ export default function Board() {
       : null
 
   const svgCursor = isDrawingTool ? 'crosshair' : isBallTool ? 'cell' : 'default'
+  // T3: duración de transición CSS para animación suave en demo
+  const transitionDuration = mode === 'demo' ? Math.round(demoSpeed * 0.85) : 0
 
   return (
     <div className="w-full flex justify-center">
@@ -145,6 +166,12 @@ export default function Board() {
         >
           <Court />
 
+          {/* T3: estilos de transición para jugadores y animación de descripción */}
+          <style>{`
+            @keyframes desc-fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+            .player-layer > g { transition: transform ${transitionDuration}ms ease-in-out; }
+          `}</style>
+
           {/* Anotaciones del frame actual */}
           <AnnotationLayer
             annotations={annotations}
@@ -159,31 +186,31 @@ export default function Board() {
             <MovementArrows from={prevFrame!.positions} to={currentFrame.positions} />
           )}
 
-          {/* Jugadores */}
-          {players.map((player) => {
-            const pos = positions.find((p) => p.playerId === player.id)
-            if (!pos) return null
-            return (
-              <PlayerPiece
-                key={player.id}
-                player={player}
-                x={pos.x}
-                y={pos.y}
-                draggable={draggable}
-                onMove={handleMove}
-                svgRef={svgRef}
-              />
-            )
-          })}
+          {/* Jugadores — T3: wrapper para transiciones CSS */}
+          <g className="player-layer">
+            {players.map((player) => {
+              const pos = positions.find((p) => p.playerId === player.id)
+              if (!pos) return null
+              return (
+                <PlayerPiece
+                  key={player.id}
+                  player={player}
+                  x={pos.x}
+                  y={pos.y}
+                  draggable={draggable}
+                  onMove={handleMove}
+                  svgRef={svgRef}
+                />
+              )
+            })}
+          </g>
 
-          {/* Pelota */}
+          {/* Pelota — T4: drag con herramienta ball */}
           {ballPos && (
             <g
               transform={`translate(${(ballPos.x / 100) * COURT_WIDTH}, ${(ballPos.y / 100) * COURT_HEIGHT})`}
               style={{ cursor: isBallTool ? 'cell' : 'default' }}
-              onMouseDown={(e) => {
-                if (isBallTool) { e.stopPropagation(); moveBall(ballPos.x, ballPos.y) }
-              }}
+              onMouseDown={handleBallMouseDown}
             >
               <circle r={BALL_RADIUS} fill="none" stroke="#1f1f1f" strokeWidth={2.5} />
               <line x1={-BALL_RADIUS} y1={0} x2={BALL_RADIUS} y2={0} stroke="#1f1f1f" strokeWidth={1} opacity={0.5} />
@@ -208,6 +235,19 @@ export default function Board() {
             </g>
           )}
         </svg>
+
+        {/* T5: overlay de descripción del frame en modo demo */}
+        {mode === 'demo' && currentFrame.description && (
+          <div
+            key={currentFrameIndex}
+            className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none"
+            style={{ animation: 'desc-fade-in 0.4s ease-out' }}
+          >
+            <div className="bg-black/70 text-white text-sm px-4 py-2 rounded-xl text-center backdrop-blur-sm">
+              {currentFrame.description}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
