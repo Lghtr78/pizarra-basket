@@ -44,6 +44,14 @@ const DEFAULT_INITIAL_POSITIONS: PlayerPosition[] = [
   { playerId: 'd5', x: 65, y: 30 },
 ]
 
+const FIVE_OUT: PlayerPosition[] = [
+  { playerId: 'o1', x: 50, y: 78 },
+  { playerId: 'o2', x: 83, y: 55 },
+  { playerId: 'o3', x: 17, y: 55 },
+  { playerId: 'o4', x: 68, y: 30 },
+  { playerId: 'o5', x: 32, y: 30 },
+]
+
 function makeId() {
   return Math.random().toString(36).slice(2, 9)
 }
@@ -66,6 +74,8 @@ interface PlayStore {
   demoSpeed: number
   isDemoPlaying: boolean
   challengeUserPositions: PlayerPosition[]
+  challengeFrameIndex: number
+  challengeFrameScores: number[]
   editTool: EditorTool
   library: Play[]
 
@@ -105,6 +115,7 @@ interface PlayStore {
   moveChallengePlayer: (playerId: string, x: number, y: number) => void
   resetChallenge: () => void
   scoreChallenge: () => number
+  confirmChallengeFrame: () => void
 
   // serialization
   exportCode: () => string
@@ -120,6 +131,8 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   demoSpeed: 1200,
   isDemoPlaying: false,
   challengeUserPositions: [],
+  challengeFrameIndex: 0,
+  challengeFrameScores: [],
   editTool: 'select',
   library: loadLibraryFromStorage(),
 
@@ -341,13 +354,14 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     }),
 
   setMode: (mode) =>
-    set((s) => {
+    set(() => {
       if (mode === 'challenge') {
-        const firstFrame = s.play.keyframes[0]
         return {
           mode,
           currentFrameIndex: 0,
-          challengeUserPositions: firstFrame.positions.map((p) => ({ ...p })),
+          challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+          challengeFrameIndex: 0,
+          challengeFrameScores: [],
         }
       }
       return { mode, currentFrameIndex: 0 }
@@ -373,13 +387,16 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     })),
 
   resetChallenge: () =>
-    set((s) => ({
-      challengeUserPositions: s.play.keyframes[0].positions.map((p) => ({ ...p })),
+    set(() => ({
+      challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+      challengeFrameIndex: 0,
+      challengeFrameScores: [],
     })),
 
   scoreChallenge: () => {
     const s = get()
-    const target = s.play.keyframes[s.play.keyframes.length - 1].positions
+    const target = s.play.keyframes[s.challengeFrameIndex].positions
+      .filter((p) => p.playerId.startsWith('o'))
     const user = s.challengeUserPositions
     let totalError = 0
     for (const t of target) {
@@ -389,9 +406,32 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const dy = t.y - u.y
       totalError += Math.sqrt(dx * dx + dy * dy)
     }
-    const score = Math.max(0, Math.round(100 - (totalError / 1410) * 100))
+    const score = Math.max(0, Math.round(100 - (totalError / 705) * 100))
     return score
   },
+
+  confirmChallengeFrame: () =>
+    set((s) => {
+      const target = s.play.keyframes[s.challengeFrameIndex].positions
+        .filter((p) => p.playerId.startsWith('o'))
+      const user = s.challengeUserPositions
+      let totalError = 0
+      for (const t of target) {
+        const u = user.find((p) => p.playerId === t.playerId)
+        if (!u) continue
+        const dx = t.x - u.x
+        const dy = t.y - u.y
+        totalError += Math.sqrt(dx * dx + dy * dy)
+      }
+      const score = Math.max(0, Math.round(100 - (totalError / 705) * 100))
+      const challengeFrameScores = [...s.challengeFrameScores, score]
+      const nextFrameIndex = s.challengeFrameIndex + 1
+      return {
+        challengeFrameScores,
+        challengeFrameIndex: nextFrameIndex,
+        challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+      }
+    }),
 
   exportCode: () => {
     const { play } = get()
