@@ -117,6 +117,9 @@ interface PlayStore {
   scoreChallenge: () => number
   confirmChallengeFrame: () => void
 
+  // library
+  loadPlay: (play: Play) => void
+
   // serialization
   exportCode: () => string
   importCode: (code: string) => boolean
@@ -432,6 +435,9 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
         challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
       }
     }),
+
+  loadPlay: (play) =>
+    set({ play: { ...play, id: makeId() }, currentFrameIndex: 0, mode: 'edit' }),
 
   exportCode: () => {
     const { play } = get()
