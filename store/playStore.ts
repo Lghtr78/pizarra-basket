@@ -540,11 +540,16 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
         : Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
       const challengeFrameScores = [...s.challengeFrameScores, score]
       const nextFrameIndex = s.challengeFrameIndex + 1
+      // El siguiente frame arranca desde las posiciones TARGET del frame actual,
+      // no desde FIVE_OUT — así cada frame construye sobre el estado anterior.
+      const nextPositions = frame.positions.map((p) => ({ ...p }))
+      const nextBallPos = frame.ballPosition ? { ...frame.ballPosition } : undefined
       return {
         challengeFrameScores,
         challengeFrameIndex: nextFrameIndex,
-        challengeUserPositions: makeChallengePositions(s.players),
-        challengeUserBallPosition: undefined,
+        currentFrameIndex: nextFrameIndex < s.play.keyframes.length ? nextFrameIndex : 0,
+        challengeUserPositions: nextPositions,
+        challengeUserBallPosition: nextBallPos,
         challengeUserAnnotations: [],
       }
     }),
