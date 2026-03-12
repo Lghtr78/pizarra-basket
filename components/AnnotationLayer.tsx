@@ -1,5 +1,5 @@
 'use client'
-import React, { useCallback } from 'react'
+import React, { useRef, useLayoutEffect, useState, useCallback } from 'react'
 import { Annotation, AnnotationType } from '@/types/play'
 import { COURT_WIDTH, COURT_HEIGHT } from './Court'
 
@@ -11,7 +11,15 @@ interface Props {
   preview?: { type: AnnotationType; fromX: number; fromY: number; toX: number; toY: number } | null
   onRemove?: (id: string) => void
   onMoveControl?: (annId: string, cx: number, cy: number) => void
+  onMoveFrom?: (annId: string, fromX: number, fromY: number) => void
+  onMoveTo?: (annId: string, toX: number, toY: number) => void
   svgRef?: React.RefObject<SVGSVGElement | null>
+  // Narrative Engine
+  narrativeMode?: boolean
+  visibleAnnotationIds?: string[]
+  drawingAnnotationId?: string | null
+  drawingProgress?: number      // 0→1 stroke-dashoffset
+  annotationOpacity?: number    // 1→0 fade_out
 }
 
 function toSVG(x: number, y: number) {
@@ -109,7 +117,14 @@ const COLORS: Record<AnnotationType, string> = {
   tiro:           'rgba(180,20,20,0.9)',
 }
 
-function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string }) {
+type DashProps = Pick<React.SVGProps<SVGPathElement>, 'strokeDasharray' | 'strokeDashoffset'>
+
+function AnnotationShape({ ann, markerId, pathRef, dashProps }: {
+  ann: Annotation
+  markerId: string
+  pathRef?: React.Ref<SVGPathElement>
+  dashProps?: DashProps
+}) {
   const { type, fromX, fromY, toX, toY } = ann
   const color = COLORS[type]
   const p0 = toSVG(fromX, fromY)
@@ -121,7 +136,10 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
     const d = isCurved
       ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
       : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
-    return <path d={d} fill="none" stroke={color} strokeWidth={2.5} markerEnd={`url(#${markerId})`} />
+    return (
+      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={7.5}
+        markerEnd={`url(#${markerId})`} {...dashProps} />
+    )
   }
 
   if (type === 'pase') {
@@ -129,15 +147,15 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
       ? `M ${p0.x} ${p0.y} Q ${cp.x} ${cp.y} ${p2.x} ${p2.y}`
       : `M ${p0.x} ${p0.y} L ${p2.x} ${p2.y}`
     return (
-      <path d={d} fill="none" stroke={color} strokeWidth={2.5}
-        strokeDasharray="8 5" markerEnd={`url(#${markerId})`} />
+      <path ref={pathRef} d={d} fill="none" stroke={color} strokeWidth={7.5}
+        strokeDasharray="8 5" markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
 
   if (type === 'dribling') {
     return (
-      <path d={buildZigzagPath(ann)} fill="none"
-        stroke={color} strokeWidth={2.5} markerEnd={`url(#${markerId})`} />
+      <path ref={pathRef} d={buildZigzagPath(ann)} fill="none"
+        stroke={color} strokeWidth={7.5} markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
 
@@ -145,23 +163,58 @@ function AnnotationShape({ ann, markerId }: { ann: Annotation; markerId: string 
     const { line, bar } = buildScreenParts(ann)
     return (
       <g>
-        <path d={line} fill="none" stroke={color} strokeWidth={2.5} />
-        <path d={bar} fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+        <path ref={pathRef} d={line} fill="none" stroke={color} strokeWidth={7.5} {...dashProps} />
+        <path d={bar} fill="none" stroke={color} strokeWidth={10.5} strokeLinecap="round" />
       </g>
     )
   }
 
   if (type === 'tiro') {
     return (
-      <path d={buildTiroPath(ann)} fill="none" stroke={color} strokeWidth={2.5}
-        strokeDasharray="6 4" markerEnd={`url(#${markerId})`} />
+      <path ref={pathRef} d={buildTiroPath(ann)} fill="none" stroke={color} strokeWidth={7.5}
+        strokeDasharray="6 4" markerEnd={`url(#${markerId})`} {...dashProps} />
     )
   }
 
   return null
 }
 
-export default function AnnotationLayer({ annotations, preview, onRemove, onMoveControl, svgRef }: Props) {
+// Wrapper que mide el path con getTotalLength() y aplica stroke-dashoffset
+function DrawableShape({ ann, markerId, progress }: {
+  ann: Annotation
+  markerId: string
+  progress?: number   // undefined = sin animación (ya dibujado)
+}) {
+  const pathRef = useRef<SVGPathElement>(null)
+  const [totalLen, setTotalLen] = useState(0)
+
+  useLayoutEffect(() => {
+    if (pathRef.current) setTotalLen(pathRef.current.getTotalLength())
+  }, [ann.fromX, ann.fromY, ann.toX, ann.toY, ann.cx, ann.cy])
+
+  const isAnimating = progress !== undefined && progress < 1
+  const dashProps: DashProps | undefined =
+    isAnimating && totalLen > 0
+      ? { strokeDasharray: totalLen, strokeDashoffset: totalLen * (1 - progress) }
+      : undefined
+
+  return <AnnotationShape ann={ann} markerId={markerId} pathRef={pathRef} dashProps={dashProps} />
+}
+
+export default function AnnotationLayer({
+  annotations,
+  preview,
+  onRemove,
+  onMoveControl,
+  onMoveFrom,
+  onMoveTo,
+  svgRef,
+  narrativeMode,
+  visibleAnnotationIds,
+  drawingAnnotationId,
+  drawingProgress,
+  annotationOpacity,
+}: Props) {
   const markers = Object.entries(COLORS).map(([type, color]) => (
     <marker key={type} id={`ann-arrow-${type}`}
       markerWidth="7" markerHeight="7" refX="6" refY="3.5"
@@ -191,6 +244,30 @@ export default function AnnotationLayer({ annotations, preview, onRemove, onMove
     window.addEventListener('mouseup', onUp)
   }, [svgRef, onMoveControl])
 
+  const handleEndpointDrag = useCallback((
+    e: React.MouseEvent,
+    annId: string,
+    endpoint: 'from' | 'to'
+  ) => {
+    if (!svgRef?.current) return
+    e.stopPropagation()
+    e.preventDefault()
+    const svg = svgRef.current
+    const onMove = (me: MouseEvent) => {
+      const rect = svg.getBoundingClientRect()
+      const x = Math.max(0, Math.min(100, ((me.clientX - rect.left) / rect.width) * 100))
+      const y = Math.max(0, Math.min(100, ((me.clientY - rect.top) / rect.height) * 100))
+      if (endpoint === 'from') onMoveFrom?.(annId, x, y)
+      else onMoveTo?.(annId, x, y)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [svgRef, onMoveFrom, onMoveTo])
+
   const showHandles = !!onMoveControl
 
   return (
@@ -198,17 +275,27 @@ export default function AnnotationLayer({ annotations, preview, onRemove, onMove
       <defs>{markers}</defs>
 
       {annotations.map((ann) => {
+        // En modo narrativo: filtrar por visibilidad
+        if (narrativeMode) {
+          const isVisible = visibleAnnotationIds?.includes(ann.id)
+          const isDrawing = drawingAnnotationId === ann.id
+          if (!isVisible && !isDrawing) return null
+        }
+
+        const isDrawing = narrativeMode && drawingAnnotationId === ann.id
+        const progress  = isDrawing ? (drawingProgress ?? 0) : undefined
+        const opacity   = narrativeMode ? (annotationOpacity ?? 1) : 1
+
         const p0 = toSVG(ann.fromX, ann.fromY)
         const p2 = toSVG(ann.toX, ann.toY)
         const cp = getControlPt(ann)
         const isCurvable = CURVABLE.includes(ann.type)
         const isCurved = ann.cx !== undefined && ann.cy !== undefined
-        // Midpoint visual para el botón de borrado
         const mid = isCurved ? bezierPt(0.5, p0, cp, p2) : { x: (p0.x+p2.x)/2, y: (p0.y+p2.y)/2 }
 
         return (
-          <g key={ann.id}>
-            <AnnotationShape ann={ann} markerId={`ann-arrow-${ann.type}`} />
+          <g key={ann.id} opacity={opacity}>
+            <DrawableShape ann={ann} markerId={`ann-arrow-${ann.type}`} progress={progress} />
 
             {/* Handle de curvatura (solo para tipos curvables en modo edición) */}
             {showHandles && isCurvable && (
@@ -221,7 +308,7 @@ export default function AnnotationLayer({ annotations, preview, onRemove, onMove
                     strokeDasharray="3 3" pointerEvents="none"
                   />
                 )}
-                {/* Handle arrastrabe */}
+                {/* Handle arrastrable */}
                 <circle
                   cx={cp.x} cy={cp.y} r={7}
                   fill={isCurved ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.05)'}
@@ -231,6 +318,26 @@ export default function AnnotationLayer({ annotations, preview, onRemove, onMove
                   onMouseDown={(e) => handleControlDrag(e, ann.id)}
                 />
               </g>
+            )}
+
+            {/* Handles de extremos — solo en modo edición */}
+            {showHandles && (onMoveFrom || onMoveTo) && (
+              <>
+                {/* Handle de ORIGEN (círculo verde) */}
+                <circle
+                  cx={p0.x} cy={p0.y} r={6}
+                  fill="rgba(34,197,94,0.8)" stroke="white" strokeWidth={1.5}
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={(e) => handleEndpointDrag(e, ann.id, 'from')}
+                />
+                {/* Handle de DESTINO (círculo rojo) */}
+                <circle
+                  cx={p2.x} cy={p2.y} r={6}
+                  fill="rgba(239,68,68,0.8)" stroke="white" strokeWidth={1.5}
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={(e) => handleEndpointDrag(e, ann.id, 'to')}
+                />
+              </>
             )}
 
             {/* Área de click para borrar (solo en modo select) */}

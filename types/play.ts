@@ -26,6 +26,7 @@ export interface Annotation {
   toY: number
   cx?: number  // punto de control bezier (porcentaje), undefined = línea recta
   cy?: number
+  playerId?: string  // jugador vinculado (solo desplazamiento)
 }
 
 export interface Keyframe {
@@ -33,6 +34,7 @@ export interface Keyframe {
   positions: PlayerPosition[]
   annotations?: Annotation[]
   ballPosition?: { x: number; y: number }
+  description?: string
 }
 
 export interface Play {

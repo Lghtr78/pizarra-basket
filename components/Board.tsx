@@ -1,13 +1,23 @@
 'use client'
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback } from 'react'
 import { usePlayStore } from '@/store/playStore'
 import Court, { COURT_WIDTH, COURT_HEIGHT } from './Court'
 import PlayerPiece from './PlayerPiece'
-import MovementArrows from './MovementArrows'
 import AnnotationLayer from './AnnotationLayer'
+import NarrativeOverlay from './NarrativeOverlay'
+import { useNarrativeEngine } from '@/hooks/useNarrativeEngine'
 import { AnnotationType } from '@/types/play'
 
-const BALL_RADIUS = 10
+const BALL_RADIUS = 12
+
+// Interpolación sobre curva bezier cuadrática
+function bezierPoint(t: number, p0x: number, p0y: number, cpx: number, cpy: number, p2x: number, p2y: number) {
+  const m = 1 - t
+  return {
+    x: m * m * p0x + 2 * m * t * cpx + t * t * p2x,
+    y: m * m * p0y + 2 * m * t * cpy + t * t * p2y,
+  }
+}
 
 export default function Board() {
   const svgRef = useRef<SVGSVGElement>(null)
@@ -26,21 +36,23 @@ export default function Board() {
     addAnnotation,
     removeAnnotation,
     moveAnnotationControl,
+    moveAnnotationFrom,
+    moveAnnotationTo,
     moveBall,
   } = usePlayStore()
 
-  // useRef para evitar stale closure en los event handlers
+  // Narrative Engine — reemplaza el timer y el rAF de demo
+  const engine = useNarrativeEngine({
+    mode,
+    isDemoPlaying,
+    currentFrameIndex,
+    play,
+    demoSpeed,
+    advanceDemoFrame,
+  })
+
   const drawStartRef = useRef<{ x: number; y: number } | null>(null)
   const [drawPreview, setDrawPreview] = useState<{ from: {x:number,y:number}; to: {x:number,y:number} } | null>(null)
-
-  // Demo auto-avance
-  useEffect(() => {
-    if (mode !== 'demo' || !isDemoPlaying) return
-    const timer = setTimeout(() => {
-      advanceDemoFrame()
-    }, demoSpeed)
-    return () => clearTimeout(timer)
-  }, [mode, isDemoPlaying, currentFrameIndex, demoSpeed, advanceDemoFrame])
 
   const getSVGCoords = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
@@ -104,6 +116,25 @@ export default function Board() {
     [isDrawingTool, getSVGCoords, addAnnotation, editTool]
   )
 
+  // Drag de la pelota con herramienta ball
+  const handleBallMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isBallTool) return
+      e.stopPropagation()
+      const move = (ev: MouseEvent) => {
+        const coords = getSVGCoords(ev.clientX, ev.clientY)
+        if (coords) moveBall(coords.x, coords.y)
+      }
+      const up = () => {
+        window.removeEventListener('mousemove', move)
+        window.removeEventListener('mouseup', up)
+      }
+      window.addEventListener('mousemove', move)
+      window.addEventListener('mouseup', up)
+    },
+    [isBallTool, getSVGCoords, moveBall]
+  )
+
   const currentFrame = play.keyframes[currentFrameIndex]
   const prevFrame = currentFrameIndex > 0 ? play.keyframes[currentFrameIndex - 1] : null
 
@@ -113,9 +144,21 @@ export default function Board() {
   const draggable = (mode === 'edit' || mode === 'challenge') && editTool === 'select'
   const handleMove = mode === 'edit' ? movePlayer : moveChallengePlayer
 
-  const showMovementArrows = mode === 'demo' && prevFrame !== null
   const annotations = currentFrame.annotations ?? []
   const ballPos = currentFrame.ballPosition
+
+  // Posición efectiva de la pelota — movida por el engine en pase/dribling
+  const movingBall = engine.movingBall
+  let effectiveBallX: number = ballPos?.x ?? (movingBall?.fromX ?? 50)
+  let effectiveBallY: number = ballPos?.y ?? (movingBall?.fromY ?? 50)
+  if (movingBall && engine.movingBallProgress > 0) {
+    const t   = engine.movingBallProgress
+    const cpx = movingBall.cx ?? (movingBall.fromX + movingBall.toX) / 2
+    const cpy = movingBall.cy ?? (movingBall.fromY + movingBall.toY) / 2
+    const m   = 1 - t
+    effectiveBallX = m*m*movingBall.fromX + 2*m*t*cpx + t*t*movingBall.toX
+    effectiveBallY = m*m*movingBall.fromY + 2*m*t*cpy + t*t*movingBall.toY
+  }
 
   const preview =
     isDrawingTool && drawPreview
@@ -129,10 +172,12 @@ export default function Board() {
       : null
 
   const svgCursor = isDrawingTool ? 'crosshair' : isBallTool ? 'cell' : 'default'
+  // CSS transition solo para navegación manual en demo (engine toma el control al reproducir)
+  const transitionDuration = mode === 'demo' && !isDemoPlaying ? Math.round(demoSpeed * 0.85) : 0
 
   return (
-    <div className="w-full flex justify-center">
-      <div className="w-full max-w-[600px] relative">
+    <div className="w-full flex items-center justify-center">
+      <div className="w-full max-w-[690px] relative">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${COURT_WIDTH} ${COURT_HEIGHT}`}
@@ -145,45 +190,78 @@ export default function Board() {
         >
           <Court />
 
+          {/* Estilos de transición para jugadores */}
+          <style>{`
+            @keyframes desc-fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+            .player-layer > g { transition: transform ${transitionDuration}ms ease-in-out; }
+          `}</style>
+
           {/* Anotaciones del frame actual */}
           <AnnotationLayer
             annotations={annotations}
             preview={preview}
             onRemove={mode === 'edit' && editTool === 'select' ? removeAnnotation : undefined}
             onMoveControl={mode === 'edit' ? moveAnnotationControl : undefined}
+            onMoveFrom={mode === 'edit' ? moveAnnotationFrom : undefined}
+            onMoveTo={mode === 'edit' ? moveAnnotationTo : undefined}
             svgRef={svgRef}
+            narrativeMode={mode === 'demo' && isDemoPlaying}
+            visibleAnnotationIds={engine.visibleAnnotationIds}
+            drawingAnnotationId={engine.drawingAnnotationId}
+            drawingProgress={engine.drawingProgress}
+            annotationOpacity={engine.annotationOpacity}
           />
 
-          {/* Flechas de movimiento automático en demo */}
-          {showMovementArrows && (
-            <MovementArrows from={prevFrame!.positions} to={currentFrame.positions} />
-          )}
+          {/* Jugadores — opacidad controlada por el engine en fase players_appear */}
+          <g
+            className="player-layer"
+            style={{ opacity: mode === 'demo' && isDemoPlaying ? engine.playerOpacity : 1 }}
+          >
+            {players.map((player) => {
+              const pos = positions.find((p) => p.playerId === player.id)
+              if (!pos) return null
 
-          {/* Jugadores */}
-          {players.map((player) => {
-            const pos = positions.find((p) => p.playerId === player.id)
-            if (!pos) return null
-            return (
-              <PlayerPiece
-                key={player.id}
-                player={player}
-                x={pos.x}
-                y={pos.y}
-                draggable={draggable}
-                onMove={handleMove}
-                svgRef={svgRef}
-              />
-            )
-          })}
+              // Calcular posición efectiva: bezier, lineal o posición del frame
+              let effectiveX = pos.x
+              let effectiveY = pos.y
 
-          {/* Pelota */}
-          {ballPos && (
+              if (mode === 'demo' && isDemoPlaying && prevFrame && engine.animProgress > 0 && engine.animProgress < 1) {
+                const prevPos = prevFrame.positions.find((p) => p.playerId === player.id)
+                const annotation = (prevFrame.annotations ?? []).find(
+                  (a) => a.type === 'desplazamiento' && a.playerId === player.id
+                )
+                if (annotation && prevPos) {
+                  const cpx = annotation.cx ?? (annotation.fromX + annotation.toX) / 2
+                  const cpy = annotation.cy ?? (annotation.fromY + annotation.toY) / 2
+                  const pt = bezierPoint(engine.animProgress, annotation.fromX, annotation.fromY, cpx, cpy, annotation.toX, annotation.toY)
+                  effectiveX = pt.x
+                  effectiveY = pt.y
+                } else if (prevPos) {
+                  effectiveX = prevPos.x + (pos.x - prevPos.x) * engine.animProgress
+                  effectiveY = prevPos.y + (pos.y - prevPos.y) * engine.animProgress
+                }
+              }
+
+              return (
+                <PlayerPiece
+                  key={player.id}
+                  player={player}
+                  x={effectiveX}
+                  y={effectiveY}
+                  draggable={draggable}
+                  onMove={handleMove}
+                  svgRef={svgRef}
+                />
+              )
+            })}
+          </g>
+
+          {/* Pelota — visible también durante movimiento de pase/dribling */}
+          {(ballPos || movingBall) && (
             <g
-              transform={`translate(${(ballPos.x / 100) * COURT_WIDTH}, ${(ballPos.y / 100) * COURT_HEIGHT})`}
+              transform={`translate(${(effectiveBallX / 100) * COURT_WIDTH}, ${(effectiveBallY / 100) * COURT_HEIGHT})`}
               style={{ cursor: isBallTool ? 'cell' : 'default' }}
-              onMouseDown={(e) => {
-                if (isBallTool) { e.stopPropagation(); moveBall(ballPos.x, ballPos.y) }
-              }}
+              onMouseDown={handleBallMouseDown}
             >
               <circle r={BALL_RADIUS} fill="none" stroke="#1f1f1f" strokeWidth={2.5} />
               <line x1={-BALL_RADIUS} y1={0} x2={BALL_RADIUS} y2={0} stroke="#1f1f1f" strokeWidth={1} opacity={0.5} />
@@ -208,6 +286,28 @@ export default function Board() {
             </g>
           )}
         </svg>
+
+        {/* Overlay narrativo durante reproducción */}
+        {mode === 'demo' && isDemoPlaying && (
+          <NarrativeOverlay
+            segments={engine.segments}
+            currentIndex={engine.currentSegmentIndex}
+            frameKey={currentFrameIndex}
+          />
+        )}
+
+        {/* Descripción estática cuando demo está pausado */}
+        {mode === 'demo' && !isDemoPlaying && currentFrame.description && (
+          <div
+            key={currentFrameIndex}
+            className="absolute bottom-4 left-0 right-0 flex justify-center pointer-events-none"
+            style={{ animation: 'desc-fade-in 0.4s ease-out' }}
+          >
+            <div className="bg-black/70 text-white text-sm px-4 py-2 rounded-xl text-center backdrop-blur-sm">
+              {currentFrame.description}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

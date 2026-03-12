@@ -30,6 +30,7 @@ export default function EditPanel() {
     goToFrame,
     addKeyframe,
     removeKeyframe,
+    insertFrameAfter,
     setPlayName,
     setEditTool,
     removeAnnotation,
@@ -37,6 +38,8 @@ export default function EditPanel() {
     saveToLibrary,
     addDefender,
     removeDefender,
+    updateKeyframeDescription,
+    updatePlayDescription,
   } = usePlayStore()
 
   const defenderCount = players.filter((p) => p.role === 'defense').length
@@ -148,35 +151,55 @@ export default function EditPanel() {
         />
       </div>
 
+      {/* Descripción global de la jugada */}
+      <div>
+        <label className="text-xs text-white/60 uppercase tracking-wider">Descripción general</label>
+        <textarea
+          className="mt-1 w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-orange-400 text-sm resize-none"
+          rows={2}
+          value={play.description ?? ''}
+          onChange={(e) => updatePlayDescription(e.target.value)}
+          placeholder="Objetivo táctico de la jugada (opcional)"
+        />
+      </div>
+
       {/* Keyframes */}
       <div>
         <label className="text-xs text-white/60 uppercase tracking-wider">Frames de la jugada</label>
         <p className="text-xs text-white/40 mt-0.5 mb-2">
           Mové jugadores y dibujá símbolos en cada frame.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-1">
           {play.keyframes.map((kf, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <button
-                onClick={() => goToFrame(i)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  i === currentFrameIndex
-                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-              >
-                {i === 0 ? 'Inicio' : `F${i}`}
-                {(kf.annotations?.length ?? 0) > 0 && (
-                  <span className="ml-1 text-[10px] opacity-60">{kf.annotations!.length}</span>
-                )}
-              </button>
-              {play.keyframes.length > 1 && (
+            <React.Fragment key={i}>
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => removeKeyframe(i)}
-                  className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs flex items-center justify-center"
-                >×</button>
-              )}
-            </div>
+                  onClick={() => goToFrame(i)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    i === currentFrameIndex
+                      ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  {i === 0 ? 'Inicio' : `F${i}`}
+                  {(kf.annotations?.length ?? 0) > 0 && (
+                    <span className="ml-1 text-[10px] opacity-60">{kf.annotations!.length}</span>
+                  )}
+                </button>
+                {play.keyframes.length > 1 && (
+                  <button
+                    onClick={() => removeKeyframe(i)}
+                    className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/40 text-xs flex items-center justify-center"
+                  >×</button>
+                )}
+              </div>
+              {/* Botón insertar frame después de este */}
+              <button
+                onClick={() => insertFrameAfter(i)}
+                title={`Insertar frame después de ${i === 0 ? 'Inicio' : `F${i}`}`}
+                className="w-5 h-5 rounded-full bg-white/5 border border-dashed border-white/20 text-white/40 hover:border-orange-400 hover:text-orange-400 text-xs flex items-center justify-center transition-all"
+              >+</button>
+            </React.Fragment>
           ))}
           <button
             onClick={addKeyframe}
@@ -185,6 +208,20 @@ export default function EditPanel() {
             + Frame
           </button>
         </div>
+      </div>
+
+      {/* Descripción del frame actual */}
+      <div>
+        <label className="text-xs text-white/60 uppercase tracking-wider">
+          Descripción del frame {currentFrameIndex === 0 ? 'inicial' : currentFrameIndex}
+        </label>
+        <textarea
+          className="mt-1 w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:border-orange-400 text-sm resize-none"
+          rows={2}
+          value={currentFrame.description ?? ''}
+          onChange={(e) => updateKeyframeDescription(currentFrameIndex, e.target.value)}
+          placeholder="Explicación táctica (opcional, se muestra en Demo)"
+        />
       </div>
 
       <div className="border-t border-white/10" />

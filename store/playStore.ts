@@ -31,17 +31,25 @@ const DEFAULT_PLAYERS: Player[] = [
   { id: 'd5', label: 'D', role: 'defense', color: '#3b82f6' },
 ]
 
-const DEFAULT_POSITIONS: PlayerPosition[] = [
-  { playerId: 'o1', x: 50, y: 75 },
-  { playerId: 'o2', x: 25, y: 60 },
-  { playerId: 'o3', x: 75, y: 60 },
-  { playerId: 'o4', x: 20, y: 40 },
-  { playerId: 'o5', x: 80, y: 40 },
+const DEFAULT_INITIAL_POSITIONS: PlayerPosition[] = [
+  { playerId: 'o1', x: 50, y: 63 },   // Base (PG) — tope del arco de 3, centro
+  { playerId: 'o2', x: 83, y: 47 },   // Escolta (SG) — ala derecha, línea de 3
+  { playerId: 'o3', x: 17, y: 47 },   // Alero (SF) — ala izquierda, línea de 3
+  { playerId: 'o4', x: 94, y: 16 },   // Ala-pívot (PF) — esquina derecha (corner 3)
+  { playerId: 'o5', x: 6,  y: 16 },   // Pívot (C) — esquina izquierda (corner 3)
   { playerId: 'd1', x: 50, y: 55 },
   { playerId: 'd2', x: 30, y: 45 },
   { playerId: 'd3', x: 70, y: 45 },
   { playerId: 'd4', x: 35, y: 30 },
   { playerId: 'd5', x: 65, y: 30 },
+]
+
+const FIVE_OUT: PlayerPosition[] = [
+  { playerId: 'o1', x: 50, y: 78 },
+  { playerId: 'o2', x: 83, y: 55 },
+  { playerId: 'o3', x: 17, y: 55 },
+  { playerId: 'o4', x: 68, y: 30 },
+  { playerId: 'o5', x: 32, y: 30 },
 ]
 
 function makeId() {
@@ -53,7 +61,7 @@ function makeInitialPlay(): Play {
     id: makeId(),
     name: 'Nueva jugada',
     keyframes: [
-      { id: makeId(), positions: DEFAULT_POSITIONS, annotations: [] },
+      { id: makeId(), positions: DEFAULT_INITIAL_POSITIONS, annotations: [] },
     ],
   }
 }
@@ -66,21 +74,28 @@ interface PlayStore {
   demoSpeed: number
   isDemoPlaying: boolean
   challengeUserPositions: PlayerPosition[]
+  challengeFrameIndex: number
+  challengeFrameScores: number[]
   editTool: EditorTool
   library: Play[]
 
   // edit actions
   setPlayName: (name: string) => void
+  updatePlayDescription: (description: string) => void
   movePlayer: (playerId: string, x: number, y: number) => void
   addKeyframe: () => void
   removeKeyframe: (frameIndex: number) => void
+  insertFrameAfter: (index: number) => void
   goToFrame: (index: number) => void
   setEditTool: (tool: EditorTool) => void
   addAnnotation: (ann: Omit<Annotation, 'id'>) => void
   removeAnnotation: (annId: string) => void
   moveAnnotationControl: (annId: string, cx: number, cy: number) => void
+  moveAnnotationFrom: (annId: string, fromX: number, fromY: number) => void
+  moveAnnotationTo: (annId: string, toX: number, toY: number) => void
   moveBall: (x: number, y: number) => void
   removeBall: () => void
+  updateKeyframeDescription: (frameIndex: number, description: string) => void
 
   // defender management
   addDefender: () => void
@@ -100,6 +115,7 @@ interface PlayStore {
   moveChallengePlayer: (playerId: string, x: number, y: number) => void
   resetChallenge: () => void
   scoreChallenge: () => number
+  confirmChallengeFrame: () => void
 
   // library
   loadPlay: (play: Play) => void
@@ -118,11 +134,16 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   demoSpeed: 1200,
   isDemoPlaying: false,
   challengeUserPositions: [],
+  challengeFrameIndex: 0,
+  challengeFrameScores: [],
   editTool: 'select',
   library: loadLibraryFromStorage(),
 
   setPlayName: (name) =>
     set((s) => ({ play: { ...s.play, name } })),
+
+  updatePlayDescription: (description) =>
+    set((s) => ({ play: { ...s.play, description: description || undefined } })),
 
   movePlayer: (playerId, x, y) =>
     set((s) => {
@@ -156,6 +177,22 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const keyframes = s.play.keyframes.filter((_, i) => i !== frameIndex)
       const currentFrameIndex = Math.min(s.currentFrameIndex, keyframes.length - 1)
       return { play: { ...s.play, keyframes }, currentFrameIndex }
+    }),
+
+  insertFrameAfter: (index) =>
+    set((s) => {
+      const source = s.play.keyframes[index]
+      const newFrame: Keyframe = {
+        id: makeId(),
+        positions: source.positions.map((p) => ({ ...p })),
+        annotations: [],
+      }
+      const keyframes = [
+        ...s.play.keyframes.slice(0, index + 1),
+        newFrame,
+        ...s.play.keyframes.slice(index + 1),
+      ]
+      return { play: { ...s.play, keyframes }, currentFrameIndex: index + 1 }
     }),
 
   goToFrame: (index) => set({ currentFrameIndex: index }),
@@ -203,7 +240,27 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     set((s) => {
       const frames = [...s.play.keyframes]
       const frame = frames[s.currentFrameIndex]
-      const annotations = [...(frame.annotations ?? []), { ...ann, id: makeId() }]
+
+      // Detectar jugador cercano al origen de la flecha
+      let playerId: string | undefined = undefined
+      if (ann.type === 'desplazamiento') {
+        const THRESHOLD = 8
+        let minDist = Infinity
+        for (const pos of frame.positions) {
+          const dx = pos.x - ann.fromX
+          const dy = pos.y - ann.fromY
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < THRESHOLD && dist < minDist) {
+            minDist = dist
+            playerId = pos.playerId
+          }
+        }
+      }
+
+      const annotations = [
+        ...(frame.annotations ?? []),
+        { ...ann, id: makeId(), ...(playerId ? { playerId } : {}) }
+      ]
       frames[s.currentFrameIndex] = { ...frame, annotations }
       return { play: { ...s.play, keyframes: frames } }
     }),
@@ -228,6 +285,36 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       return { play: { ...s.play, keyframes: frames } }
     }),
 
+  moveAnnotationFrom: (annId, fromX, fromY) =>
+    set((s) => ({
+      play: {
+        ...s.play,
+        keyframes: s.play.keyframes.map((kf, i) =>
+          i !== s.currentFrameIndex ? kf : {
+            ...kf,
+            annotations: (kf.annotations ?? []).map((ann) =>
+              ann.id !== annId ? ann : { ...ann, fromX, fromY }
+            ),
+          }
+        ),
+      },
+    })),
+
+  moveAnnotationTo: (annId, toX, toY) =>
+    set((s) => ({
+      play: {
+        ...s.play,
+        keyframes: s.play.keyframes.map((kf, i) =>
+          i !== s.currentFrameIndex ? kf : {
+            ...kf,
+            annotations: (kf.annotations ?? []).map((ann) =>
+              ann.id !== annId ? ann : { ...ann, toX, toY }
+            ),
+          }
+        ),
+      },
+    })),
+
   moveBall: (x, y) =>
     set((s) => {
       const frames = [...s.play.keyframes]
@@ -241,6 +328,13 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const frames = [...s.play.keyframes]
       const frame = frames[s.currentFrameIndex]
       frames[s.currentFrameIndex] = { ...frame, ballPosition: undefined }
+      return { play: { ...s.play, keyframes: frames } }
+    }),
+
+  updateKeyframeDescription: (frameIndex, description) =>
+    set((s) => {
+      const frames = [...s.play.keyframes]
+      frames[frameIndex] = { ...frames[frameIndex], description: description || undefined }
       return { play: { ...s.play, keyframes: frames } }
     }),
 
@@ -263,13 +357,14 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     }),
 
   setMode: (mode) =>
-    set((s) => {
+    set(() => {
       if (mode === 'challenge') {
-        const firstFrame = s.play.keyframes[0]
         return {
           mode,
           currentFrameIndex: 0,
-          challengeUserPositions: firstFrame.positions.map((p) => ({ ...p })),
+          challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+          challengeFrameIndex: 0,
+          challengeFrameScores: [],
         }
       }
       return { mode, currentFrameIndex: 0 }
@@ -295,13 +390,16 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     })),
 
   resetChallenge: () =>
-    set((s) => ({
-      challengeUserPositions: s.play.keyframes[0].positions.map((p) => ({ ...p })),
+    set(() => ({
+      challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+      challengeFrameIndex: 0,
+      challengeFrameScores: [],
     })),
 
   scoreChallenge: () => {
     const s = get()
-    const target = s.play.keyframes[s.play.keyframes.length - 1].positions
+    const target = s.play.keyframes[s.challengeFrameIndex].positions
+      .filter((p) => p.playerId.startsWith('o'))
     const user = s.challengeUserPositions
     let totalError = 0
     for (const t of target) {
@@ -311,9 +409,32 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const dy = t.y - u.y
       totalError += Math.sqrt(dx * dx + dy * dy)
     }
-    const score = Math.max(0, Math.round(100 - (totalError / 1410) * 100))
+    const score = Math.max(0, Math.round(100 - (totalError / 705) * 100))
     return score
   },
+
+  confirmChallengeFrame: () =>
+    set((s) => {
+      const target = s.play.keyframes[s.challengeFrameIndex].positions
+        .filter((p) => p.playerId.startsWith('o'))
+      const user = s.challengeUserPositions
+      let totalError = 0
+      for (const t of target) {
+        const u = user.find((p) => p.playerId === t.playerId)
+        if (!u) continue
+        const dx = t.x - u.x
+        const dy = t.y - u.y
+        totalError += Math.sqrt(dx * dx + dy * dy)
+      }
+      const score = Math.max(0, Math.round(100 - (totalError / 705) * 100))
+      const challengeFrameScores = [...s.challengeFrameScores, score]
+      const nextFrameIndex = s.challengeFrameIndex + 1
+      return {
+        challengeFrameScores,
+        challengeFrameIndex: nextFrameIndex,
+        challengeUserPositions: FIVE_OUT.map((p) => ({ ...p })),
+      }
+    }),
 
   loadPlay: (play) =>
     set({ play: { ...play, id: makeId() }, currentFrameIndex: 0, mode: 'edit' }),
