@@ -20,7 +20,9 @@ export default function ChallengePanel() {
     setEditTool,
     challengeFrameIndex,
     challengeFrameScores,
+    challengeUserAnnotations,
     confirmChallengeFrame,
+    clearChallengeAnnotations,
     resetChallenge,
     setMode,
   } = usePlayStore()
@@ -153,12 +155,23 @@ export default function ChallengePanel() {
             Confirmar frame {challengeFrameIndex + 1}
           </button>
 
-          <button
-            onClick={resetChallenge}
-            className="py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 text-sm transition-all"
-          >
-            Resetear
-          </button>
+          {/* Acciones secundarias */}
+          <div className="flex gap-2">
+            <button
+              onClick={clearChallengeAnnotations}
+              disabled={challengeUserAnnotations.length === 0}
+              className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 text-sm transition-all"
+              title="Borra todas las líneas y flechas dibujadas"
+            >
+              ✕ Limpiar líneas
+            </button>
+            <button
+              onClick={resetChallenge}
+              className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/50 text-sm transition-all"
+            >
+              Resetear todo
+            </button>
+          </div>
         </>
       )}
     </div>

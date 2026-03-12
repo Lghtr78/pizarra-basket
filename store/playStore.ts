@@ -133,6 +133,7 @@ interface PlayStore {
   moveChallengeAnnotationControl: (annId: string, cx: number, cy: number) => void
   moveChallengeAnnotationFrom: (annId: string, fromX: number, fromY: number) => void
   moveChallengeAnnotationTo: (annId: string, toX: number, toY: number) => void
+  clearChallengeAnnotations: () => void
   resetChallenge: () => void
   scoreChallenge: () => number
   confirmChallengeFrame: () => void
@@ -467,6 +468,9 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       ),
     })),
 
+  clearChallengeAnnotations: () =>
+    set(() => ({ challengeUserAnnotations: [] })),
+
   resetChallenge: () =>
     set((s) => ({
       challengeUserPositions: makeChallengePositions(s.players),
@@ -540,17 +544,17 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
         : Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
       const challengeFrameScores = [...s.challengeFrameScores, score]
       const nextFrameIndex = s.challengeFrameIndex + 1
-      // El siguiente frame arranca desde las posiciones TARGET del frame actual,
-      // no desde FIVE_OUT — así cada frame construye sobre el estado anterior.
-      const nextPositions = frame.positions.map((p) => ({ ...p }))
-      const nextBallPos = frame.ballPosition ? { ...frame.ballPosition } : undefined
+      // El siguiente frame arranca donde el usuario dejó el frame anterior
+      // (posiciones y pelota del usuario, no las del target)
+      const nextPositions = s.challengeUserPositions.map((p) => ({ ...p }))
+      const nextBallPos = s.challengeUserBallPosition ? { ...s.challengeUserBallPosition } : undefined
       return {
         challengeFrameScores,
         challengeFrameIndex: nextFrameIndex,
         currentFrameIndex: nextFrameIndex < s.play.keyframes.length ? nextFrameIndex : 0,
         challengeUserPositions: nextPositions,
         challengeUserBallPosition: nextBallPos,
-        challengeUserAnnotations: [],
+        challengeUserAnnotations: [],  // líneas siempre se borran al pasar de frame
       }
     }),
 
