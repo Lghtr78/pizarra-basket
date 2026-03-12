@@ -89,6 +89,7 @@ interface PlayStore {
   challengeUserAnnotations: Annotation[]
   challengeFrameIndex: number
   challengeFrameScores: number[]
+  challengeReviewingFrame: boolean  // true: mostrando resultado del frame, board congelado
   editTool: EditorTool
   library: Play[]
 
@@ -136,7 +137,8 @@ interface PlayStore {
   clearChallengeAnnotations: () => void
   resetChallenge: () => void
   scoreChallenge: () => number
-  confirmChallengeFrame: () => void
+  confirmChallengeFrame: () => void  // evalúa y congela el board en revisión
+  advanceChallengeFrame: () => void   // sale de revisión y carga el siguiente frame
 
   // serialization
   exportCode: () => string
@@ -155,6 +157,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   challengeUserAnnotations: [],
   challengeFrameIndex: 0,
   challengeFrameScores: [],
+  challengeReviewingFrame: false,
   editTool: 'select',
   library: loadLibraryFromStorage(),
 
@@ -390,6 +393,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
           challengeUserAnnotations: [],
           challengeFrameIndex: 0,
           challengeFrameScores: [],
+          challengeReviewingFrame: false,
         }
       }
       return { mode, currentFrameIndex: 0 }
@@ -473,11 +477,13 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
 
   resetChallenge: () =>
     set((s) => ({
+      currentFrameIndex: 0,
       challengeUserPositions: makeChallengePositions(s.players),
       challengeUserBallPosition: undefined,
       challengeUserAnnotations: [],
       challengeFrameIndex: 0,
       challengeFrameScores: [],
+      challengeReviewingFrame: false,
     })),
 
   scoreChallenge: () => {
@@ -512,6 +518,7 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     return Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
   },
 
+  // Paso 1: evalúa el frame y congela el board en modo revisión
   confirmChallengeFrame: () =>
     set((s) => {
       const frame = s.play.keyframes[s.challengeFrameIndex]
@@ -542,19 +549,27 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
       const score = count === 0
         ? 100
         : Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
-      const challengeFrameScores = [...s.challengeFrameScores, score]
+      // Solo guarda el score y congela — el board queda mostrando lo que armó el usuario
+      return {
+        challengeFrameScores: [...s.challengeFrameScores, score],
+        challengeReviewingFrame: true,
+      }
+    }),
+
+  // Paso 2: sale de revisión y carga el siguiente frame
+  advanceChallengeFrame: () =>
+    set((s) => {
       const nextFrameIndex = s.challengeFrameIndex + 1
       // El siguiente frame arranca donde el usuario dejó el frame anterior
-      // (posiciones y pelota del usuario, no las del target)
       const nextPositions = s.challengeUserPositions.map((p) => ({ ...p }))
       const nextBallPos = s.challengeUserBallPosition ? { ...s.challengeUserBallPosition } : undefined
       return {
-        challengeFrameScores,
         challengeFrameIndex: nextFrameIndex,
         currentFrameIndex: nextFrameIndex < s.play.keyframes.length ? nextFrameIndex : 0,
         challengeUserPositions: nextPositions,
         challengeUserBallPosition: nextBallPos,
-        challengeUserAnnotations: [],  // líneas siempre se borran al pasar de frame
+        challengeUserAnnotations: [],  // líneas se borran al pasar de frame
+        challengeReviewingFrame: false,
       }
     }),
 

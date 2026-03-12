@@ -21,14 +21,17 @@ export default function ChallengePanel() {
     challengeFrameIndex,
     challengeFrameScores,
     challengeUserAnnotations,
+    challengeReviewingFrame,
     confirmChallengeFrame,
+    advanceChallengeFrame,
     clearChallengeAnnotations,
     resetChallenge,
     setMode,
   } = usePlayStore()
 
   const totalFrames = play.keyframes.length
-  const isDone = challengeFrameIndex >= totalFrames
+  // isDone: todos los frames confirmados Y ya salió de la revisión del último
+  const isDone = challengeFrameIndex >= totalFrames && !challengeReviewingFrame
 
   const avgScore =
     isDone && challengeFrameScores.length > 0
@@ -71,7 +74,45 @@ export default function ChallengePanel() {
         ))}
       </div>
 
-      {isDone ? (
+      {challengeReviewingFrame ? (
+        /* ── Pantalla de revisión: board congelado, se muestra score del frame ── */
+        (() => {
+          const frameScore = challengeFrameScores[challengeFrameIndex]
+          const isLast = challengeFrameIndex >= totalFrames - 1
+          const scoreColor =
+            frameScore >= 85 ? 'text-green-400' : frameScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+          const scoreLabel =
+            frameScore >= 85 ? '¡Excelente!' : frameScore >= 60 ? '¡Bien!' : 'Podés mejorar'
+          return (
+            <div className="flex flex-col gap-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center gap-2">
+                <p className="text-white/50 text-xs uppercase tracking-wider">
+                  Frame {challengeFrameIndex + 1} de {totalFrames}
+                </p>
+                <div className={`text-5xl font-black ${scoreColor}`}>{frameScore}</div>
+                <div className={`text-sm font-semibold ${scoreColor}`}>{scoreLabel}</div>
+                <p className="text-white/40 text-xs text-center mt-1">
+                  El board muestra lo que armaste
+                </p>
+              </div>
+
+              <button
+                onClick={advanceChallengeFrame}
+                className="py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-base transition-all shadow-lg shadow-orange-500/20"
+              >
+                {isLast ? 'Ver resultados finales →' : `Continuar al frame ${challengeFrameIndex + 2} →`}
+              </button>
+
+              <button
+                onClick={resetChallenge}
+                className="py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 text-sm transition-all"
+              >
+                Resetear todo
+              </button>
+            </div>
+          )
+        })()
+      ) : isDone ? (
         /* Pantalla de resultados finales */
         <div className="flex flex-col gap-3 items-center py-4">
           <div className="text-6xl font-black text-white">{avgScore}</div>

@@ -32,6 +32,7 @@ export default function Board() {
     challengeUserPositions,
     challengeUserBallPosition,
     challengeUserAnnotations,
+    challengeReviewingFrame,
     movePlayer,
     moveChallengePlayer,
     moveChallengeUserBall,
@@ -76,7 +77,8 @@ export default function Board() {
     }
   }, [])
 
-  const isInteractiveMode = mode === 'edit' || mode === 'challenge'
+  // En revisión el board está congelado — el usuario solo observa lo que armó
+  const isInteractiveMode = (mode === 'edit' || mode === 'challenge') && !challengeReviewingFrame
   const isDrawingTool = isInteractiveMode && editTool !== 'select' && editTool !== 'ball'
   const isBallTool    = isInteractiveMode && editTool === 'ball'
 
