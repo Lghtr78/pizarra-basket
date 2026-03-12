@@ -157,13 +157,9 @@ export default function ChallengePanel() {
             <p className="text-orange-300 text-sm font-medium">
               Frame {challengeFrameIndex + 1} de {totalFrames}
             </p>
-            {currentFrame?.description ? (
-              <p className="text-white/80 text-sm mt-1 italic">&ldquo;{currentFrame.description}&rdquo;</p>
-            ) : (
-              <p className="text-white/50 text-sm mt-1">
-                Posicioná jugadores, pelota y anotaciones como corresponde.
-              </p>
-            )}
+            <p className="text-white/50 text-sm mt-1">
+              Posicioná jugadores, pelota y anotaciones como corresponde.
+            </p>
           </div>
 
           {/* Toolbar — mismo que edit */}

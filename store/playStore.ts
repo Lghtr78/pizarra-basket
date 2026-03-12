@@ -77,6 +77,64 @@ function makeInitialPlay(): Play {
   }
 }
 
+const MAX_ERR = 141 // sqrt(100² + 100²) — error máximo por ítem
+
+/**
+ * Calcula el score (0-100) comparando el trabajo del usuario contra el frame target.
+ * Evalúa: posiciones de jugadores + pelota + anotaciones (tipo + from/to).
+ */
+function calcFrameScore(
+  frame: Keyframe,
+  userPositions: PlayerPosition[],
+  userBall: { x: number; y: number } | undefined,
+  userAnnotations: Annotation[],
+): number {
+  let totalError = 0
+  let count = 0
+
+  // ── Posiciones de jugadores ──
+  for (const t of frame.positions) {
+    const u = userPositions.find((p) => p.playerId === t.playerId)
+    if (!u) continue
+    totalError += Math.sqrt((t.x - u.x) ** 2 + (t.y - u.y) ** 2)
+    count++
+  }
+
+  // ── Pelota ──
+  if (frame.ballPosition) {
+    if (userBall) {
+      totalError += Math.sqrt((frame.ballPosition.x - userBall.x) ** 2 + (frame.ballPosition.y - userBall.y) ** 2)
+    } else {
+      totalError += MAX_ERR
+    }
+    count++
+  }
+
+  // ── Anotaciones: tipo + posición from/to ──
+  const targetAnns = frame.annotations ?? []
+  for (const ta of targetAnns) {
+    // Buscar la anotación del usuario del mismo tipo más cercana
+    const sameType = userAnnotations.filter((ua) => ua.type === ta.type)
+    if (sameType.length === 0) {
+      // Tipo incorrecto o faltante → penalidad máxima
+      totalError += MAX_ERR
+    } else {
+      let minDist = Infinity
+      for (const ua of sameType) {
+        const dFrom = Math.sqrt((ta.fromX - ua.fromX) ** 2 + (ta.fromY - ua.fromY) ** 2)
+        const dTo   = Math.sqrt((ta.toX   - ua.toX)   ** 2 + (ta.toY   - ua.toY)   ** 2)
+        const d = (dFrom + dTo) / 2
+        if (d < minDist) minDist = d
+      }
+      totalError += minDist
+    }
+    count++
+  }
+
+  if (count === 0) return 100
+  return Math.max(0, Math.round(100 - (totalError / (count * MAX_ERR)) * 100))
+}
+
 interface PlayStore {
   players: Player[]
   play: Play
@@ -384,12 +442,14 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
   setMode: (mode) =>
     set((s) => {
       if (mode === 'challenge') {
+        const frame0 = s.play.keyframes[0]
         return {
           mode,
           currentFrameIndex: 0,
           editTool: 'select',
-          challengeUserPositions: makeChallengePositions(s.players),
-          challengeUserBallPosition: undefined,
+          // Arranca con las posiciones del frame 1 del play (no FIVE_OUT)
+          challengeUserPositions: frame0.positions.map((p) => ({ ...p })),
+          challengeUserBallPosition: frame0.ballPosition ? { ...frame0.ballPosition } : undefined,
           challengeUserAnnotations: [],
           challengeFrameIndex: 0,
           challengeFrameScores: [],
@@ -476,79 +536,38 @@ export const usePlayStore = create<PlayStore>((set, get) => ({
     set(() => ({ challengeUserAnnotations: [] })),
 
   resetChallenge: () =>
-    set((s) => ({
-      currentFrameIndex: 0,
-      challengeUserPositions: makeChallengePositions(s.players),
-      challengeUserBallPosition: undefined,
-      challengeUserAnnotations: [],
-      challengeFrameIndex: 0,
-      challengeFrameScores: [],
-      challengeReviewingFrame: false,
-    })),
+    set((s) => {
+      const frame0 = s.play.keyframes[0]
+      return {
+        currentFrameIndex: 0,
+        challengeUserPositions: frame0.positions.map((p) => ({ ...p })),
+        challengeUserBallPosition: frame0.ballPosition ? { ...frame0.ballPosition } : undefined,
+        challengeUserAnnotations: [],
+        challengeFrameIndex: 0,
+        challengeFrameScores: [],
+        challengeReviewingFrame: false,
+      }
+    }),
 
   scoreChallenge: () => {
     const s = get()
-    const frame = s.play.keyframes[s.challengeFrameIndex]
-    const target = frame.positions
-    const user = s.challengeUserPositions
-    let totalError = 0
-    let count = 0
-    for (const t of target) {
-      const u = user.find((p) => p.playerId === t.playerId)
-      if (!u) continue
-      const dx = t.x - u.x
-      const dy = t.y - u.y
-      totalError += Math.sqrt(dx * dx + dy * dy)
-      count++
-    }
-    // Incluir pelota si el frame tiene una
-    if (frame.ballPosition) {
-      const ub = s.challengeUserBallPosition
-      if (ub) {
-        const dx = frame.ballPosition.x - ub.x
-        const dy = frame.ballPosition.y - ub.y
-        totalError += Math.sqrt(dx * dx + dy * dy)
-      } else {
-        totalError += 141 // penalidad máxima si no ubicó la pelota
-      }
-      count++
-    }
-    if (count === 0) return 100
-    const maxErrorPerItem = 141 // sqrt(100² + 100²) ≈ 141
-    return Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
+    return calcFrameScore(
+      s.play.keyframes[s.challengeFrameIndex],
+      s.challengeUserPositions,
+      s.challengeUserBallPosition,
+      s.challengeUserAnnotations,
+    )
   },
 
   // Paso 1: evalúa el frame y congela el board en modo revisión
   confirmChallengeFrame: () =>
     set((s) => {
-      const frame = s.play.keyframes[s.challengeFrameIndex]
-      const target = frame.positions
-      const user = s.challengeUserPositions
-      let totalError = 0
-      let count = 0
-      for (const t of target) {
-        const u = user.find((p) => p.playerId === t.playerId)
-        if (!u) continue
-        const dx = t.x - u.x
-        const dy = t.y - u.y
-        totalError += Math.sqrt(dx * dx + dy * dy)
-        count++
-      }
-      if (frame.ballPosition) {
-        const ub = s.challengeUserBallPosition
-        if (ub) {
-          const dx = frame.ballPosition.x - ub.x
-          const dy = frame.ballPosition.y - ub.y
-          totalError += Math.sqrt(dx * dx + dy * dy)
-        } else {
-          totalError += 141
-        }
-        count++
-      }
-      const maxErrorPerItem = 141
-      const score = count === 0
-        ? 100
-        : Math.max(0, Math.round(100 - (totalError / (count * maxErrorPerItem)) * 100))
+      const score = calcFrameScore(
+        s.play.keyframes[s.challengeFrameIndex],
+        s.challengeUserPositions,
+        s.challengeUserBallPosition,
+        s.challengeUserAnnotations,
+      )
       // Solo guarda el score y congela — el board queda mostrando lo que armó el usuario
       return {
         challengeFrameScores: [...s.challengeFrameScores, score],
