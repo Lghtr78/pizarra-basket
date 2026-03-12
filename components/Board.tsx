@@ -30,14 +30,22 @@ export default function Board() {
     demoSpeed,
     editTool,
     challengeUserPositions,
+    challengeUserBallPosition,
+    challengeUserAnnotations,
     movePlayer,
     moveChallengePlayer,
+    moveChallengeUserBall,
     advanceDemoFrame,
     addAnnotation,
     removeAnnotation,
     moveAnnotationControl,
     moveAnnotationFrom,
     moveAnnotationTo,
+    addChallengeAnnotation,
+    removeChallengeAnnotation,
+    moveChallengeAnnotationControl,
+    moveChallengeAnnotationFrom,
+    moveChallengeAnnotationTo,
     moveBall,
   } = usePlayStore()
 
@@ -68,19 +76,28 @@ export default function Board() {
     }
   }, [])
 
-  const isDrawingTool = mode === 'edit' && editTool !== 'select' && editTool !== 'ball'
-  const isBallTool = mode === 'edit' && editTool === 'ball'
+  const isInteractiveMode = mode === 'edit' || mode === 'challenge'
+  const isDrawingTool = isInteractiveMode && editTool !== 'select' && editTool !== 'ball'
+  const isBallTool    = isInteractiveMode && editTool === 'ball'
+
+  // Rutas de mutación según modo
+  const effectiveMoveBall    = mode === 'challenge' ? moveChallengeUserBall : moveBall
+  const effectiveAddAnn      = mode === 'challenge' ? addChallengeAnnotation : addAnnotation
+  const effectiveRemoveAnn   = mode === 'challenge' ? removeChallengeAnnotation : removeAnnotation
+  const effectiveMoveCtrl    = mode === 'challenge' ? moveChallengeAnnotationControl : moveAnnotationControl
+  const effectiveMoveFrom    = mode === 'challenge' ? moveChallengeAnnotationFrom : moveAnnotationFrom
+  const effectiveMoveTo      = mode === 'challenge' ? moveChallengeAnnotationTo : moveAnnotationTo
 
   const handleSVGMouseDown = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       if (!(isDrawingTool || isBallTool)) return
       const coords = getSVGCoords(e.clientX, e.clientY)
       if (!coords) return
-      if (isBallTool) { moveBall(coords.x, coords.y); return }
+      if (isBallTool) { effectiveMoveBall(coords.x, coords.y); return }
       drawStartRef.current = coords
       setDrawPreview({ from: coords, to: coords })
     },
-    [isDrawingTool, isBallTool, getSVGCoords, moveBall]
+    [isDrawingTool, isBallTool, getSVGCoords, effectiveMoveBall]
   )
 
   const handleSVGMouseMove = useCallback(
@@ -101,7 +118,7 @@ export default function Board() {
         const dx = coords.x - start.x
         const dy = coords.y - start.y
         if (Math.sqrt(dx * dx + dy * dy) > 2) {
-          addAnnotation({
+          effectiveAddAnn({
             type: editTool as AnnotationType,
             fromX: start.x,
             fromY: start.y,
@@ -113,7 +130,7 @@ export default function Board() {
       drawStartRef.current = null
       setDrawPreview(null)
     },
-    [isDrawingTool, getSVGCoords, addAnnotation, editTool]
+    [isDrawingTool, getSVGCoords, effectiveAddAnn, editTool]
   )
 
   // Drag de la pelota con herramienta ball
@@ -123,7 +140,7 @@ export default function Board() {
       e.stopPropagation()
       const move = (ev: MouseEvent) => {
         const coords = getSVGCoords(ev.clientX, ev.clientY)
-        if (coords) moveBall(coords.x, coords.y)
+        if (coords) effectiveMoveBall(coords.x, coords.y)
       }
       const up = () => {
         window.removeEventListener('mousemove', move)
@@ -132,20 +149,18 @@ export default function Board() {
       window.addEventListener('mousemove', move)
       window.addEventListener('mouseup', up)
     },
-    [isBallTool, getSVGCoords, moveBall]
+    [isBallTool, getSVGCoords, effectiveMoveBall]
   )
 
   const currentFrame = play.keyframes[currentFrameIndex]
   const prevFrame = currentFrameIndex > 0 ? play.keyframes[currentFrameIndex - 1] : null
 
-  const positions =
-    mode === 'challenge' ? challengeUserPositions : currentFrame.positions
+  const positions    = mode === 'challenge' ? challengeUserPositions : currentFrame.positions
+  const annotations  = mode === 'challenge' ? challengeUserAnnotations : (currentFrame.annotations ?? [])
+  const ballPos      = mode === 'challenge' ? challengeUserBallPosition : currentFrame.ballPosition
 
-  const draggable = (mode === 'edit' || mode === 'challenge') && editTool === 'select'
+  const draggable  = isInteractiveMode && editTool === 'select'
   const handleMove = mode === 'edit' ? movePlayer : moveChallengePlayer
-
-  const annotations = currentFrame.annotations ?? []
-  const ballPos = currentFrame.ballPosition
 
   // Posición efectiva de la pelota — movida por el engine en pase/dribling
   const movingBall = engine.movingBall
@@ -196,14 +211,14 @@ export default function Board() {
             .player-layer > g { transition: transform ${transitionDuration}ms ease-in-out; }
           `}</style>
 
-          {/* Anotaciones del frame actual */}
+          {/* Anotaciones */}
           <AnnotationLayer
             annotations={annotations}
             preview={preview}
-            onRemove={mode === 'edit' && editTool === 'select' ? removeAnnotation : undefined}
-            onMoveControl={mode === 'edit' ? moveAnnotationControl : undefined}
-            onMoveFrom={mode === 'edit' ? moveAnnotationFrom : undefined}
-            onMoveTo={mode === 'edit' ? moveAnnotationTo : undefined}
+            onRemove={isInteractiveMode && editTool === 'select' ? effectiveRemoveAnn : undefined}
+            onMoveControl={isInteractiveMode ? effectiveMoveCtrl : undefined}
+            onMoveFrom={isInteractiveMode ? effectiveMoveFrom : undefined}
+            onMoveTo={isInteractiveMode ? effectiveMoveTo : undefined}
             svgRef={svgRef}
             narrativeMode={mode === 'demo' && isDemoPlaying}
             visibleAnnotationIds={engine.visibleAnnotationIds}
@@ -256,7 +271,7 @@ export default function Board() {
             })}
           </g>
 
-          {/* Pelota — visible también durante movimiento de pase/dribling */}
+          {/* Pelota */}
           {(ballPos || movingBall) && (
             <g
               transform={`translate(${(effectiveBallX / 100) * COURT_WIDTH}, ${(effectiveBallY / 100) * COURT_HEIGHT})`}
